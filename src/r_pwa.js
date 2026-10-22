@@ -69,6 +69,7 @@ function aboutModal(first){
       ${typeof accountBlock === "function" ? "" : installBlock()}
       ${typeof accountBlock === "function" ? accountBlock() + installBlock() : STANDALONE_BUILD ? `<div class="note">${ic("info")}<span>Seus dados ficam salvos <b>neste aparelho</b>. Faça um backup de vez em quando para não perder nada se trocar de celular ou limpar o navegador.</span></div>` : ""}
       <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn sm" data-act="backup">${ic("download")}Fazer backup</button><label class="btn sm" style="cursor:pointer">${ic("history")}Restaurar backup<input type="file" accept="application/json,.json" data-restore hidden></label></div>
+      ${STANDALONE_BUILD ? `<a class="btn sm ghost" href="sobre.html" style="justify-content:center">${ic("info")}Página de apresentação e como instalar</a>` : ""}
       ${first ? `<button class="btn primary" data-act="welcomeGo">${ic("flame")}Montar meu plano</button>` : ""}
     </div>`);
 }

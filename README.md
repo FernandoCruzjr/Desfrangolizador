@@ -4,6 +4,8 @@
 
 Acesse: https://fernandocruzjr.github.io/Desfrangolizador/
 
+Apresentação e como instalar: https://fernandocruzjr.github.io/Desfrangolizador/sobre.html
+
 ## O que o app faz
 
 - **Plano sob medida:** gasto basal (Mifflin-St Jeor ou Katch-McArdle), gasto total, meta de +500 kcal para hipertrofia ou −500 kcal para secar, macros e água do dia.

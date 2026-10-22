@@ -128,7 +128,7 @@ function renderGate(){
       <ul class="gate-list">${[["flame","Calorias, macros e água calculados para você"],["plate","Mais de 250 alimentos e troca grama a grama"],["dumbbell","Fichas de treino com carga, RPE e descanso"],["ruler","Medidas, % de gordura e fotos de antes e depois"],["medal","Níveis de Frango a Avançado"]].map(([i, t]) => `<li>${ic(i)}<span>${t}</span></li>`).join("")}</ul>
     </div>
     <div class="gate-card"><h2>${title}</h2><div class="sub">${sub}</div>${authForm()}
-      <div class="gate-foot">Cada pessoa vê apenas os próprios dados. Valores nutricionais são aproximados e não substituem acompanhamento profissional.</div></div>
+      <div class="gate-foot"><a href="sobre.html" style="color:var(--accent);font-weight:700;text-decoration:none">Conheça o app e veja como instalar →</a><br>Cada pessoa vê apenas os próprios dados. Valores nutricionais são aproximados e não substituem acompanhamento profissional.</div></div>
   </div>`;
   const f = g.querySelector(AUTH.mode === "criar" ? "#au-name" : "#au-email") || g.querySelector("#au-pass");
   if (f && matchMedia("(min-width:821px)").matches) f.focus();
