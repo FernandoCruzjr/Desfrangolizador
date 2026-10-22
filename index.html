@@ -3005,7 +3005,7 @@ async function socLoadMe(){
   SOC.loading = false;
   if (SOC.me) socLoadFeed(true); else if (UI.tab === "social") render();
 }
-const POST_SEL = "id,user_id,kind,body,data,image_url,created_at,profiles(id,username,display_name,avatar_url),likes(count),comments(count)";
+const POST_SEL = "id,user_id,kind,body,data,image_url,created_at,profiles!posts_user_id_fkey(id,username,display_name,avatar_url),likes(count),comments(count)";
 async function socLoadFeed(reset){
   if (SOC.loading) return; SOC.loading = true;
   if (reset) { SOC.posts = []; SOC.end = false; }
@@ -3162,7 +3162,7 @@ async function commentsModal(pid){
   openModal(`${sheetHead("Comentários")}<div id="cm-list"><div class="empty">Carregando…</div></div>
     <form class="compose" data-socform="comment" data-post="${pid}" style="margin-top:12px"><textarea class="input" maxlength="300" rows="1" placeholder="Escreva um comentário…" aria-label="Comentário"></textarea><button class="btn primary" type="submit" aria-label="Enviar">${ic("send")}</button></form>`);
   try {
-    const r = await SB().from("comments").select("id,body,created_at,user_id,profiles(id,username,display_name,avatar_url)").eq("post_id", pid).order("created_at").limit(200);
+    const r = await SB().from("comments").select("id,body,created_at,user_id,profiles!comments_user_id_fkey(id,username,display_name,avatar_url)").eq("post_id", pid).order("created_at").limit(200);
     if (r.error) throw r.error;
     const post = SOC.posts.find(x => x.id === pid), mineP = post && post.user_id === CLOUD.user.id, el = $("#cm-list"); if (!el) return;
     el.innerHTML = (r.data || []).length ? r.data.map(c => `<div class="cmt">${uav(c.profiles, "sm")}<div><b>${esc((c.profiles || {}).display_name || "")}</b> <span class="sub">· ${ago(c.created_at)}</span><p>${esc(c.body)}</p></div>
@@ -3225,7 +3225,7 @@ document.addEventListener("input", ev => { if (ev.target.id === "pp-q") { clearT
 async function modModal(){
   openModal(`${sheetHead("Moderação", "Só você vê")}<div id="md"><div class="empty">Carregando…</div></div>`);
   try {
-    const r = await SB().from("reports").select("id,reason,created_at,post_id,comment_id,reported_user,status,posts(id,body,image_url,user_id),comments(id,body,user_id)").eq("status", "aberta").order("created_at", {ascending:false}).limit(50);
+    const r = await SB().from("reports").select("id,reason,created_at,post_id,comment_id,reported_user,status,posts!reports_post_id_fkey(id,body,image_url,user_id),comments!reports_comment_id_fkey(id,body,user_id)").eq("status", "aberta").order("created_at", {ascending:false}).limit(50);
     if (r.error) throw r.error;
     const el = $("#md"); if (!el) return;
     el.innerHTML = (r.data || []).map(x => `<div class="mgroup" style="margin-bottom:10px"><div class="mgroup-h">${x.post_id ? "Post" : x.comment_id ? "Comentário" : "Perfil"}<span class="pill warn">${ago(x.created_at)}</span></div>
