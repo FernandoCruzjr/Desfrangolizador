@@ -1,0 +1,272 @@
+
+<script>
+/* ======================= UTILITÁRIOS ======================= */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = (n, d = 0) => Number(n || 0).toLocaleString("pt-BR", {minimumFractionDigits: d, maximumFractionDigits: d});
+const iso = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+const todayISO = () => iso(new Date());
+const parseISO = s => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+const addDays = (s, n) => { const d = parseISO(s); d.setDate(d.getDate() + n); return iso(d); };
+const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const toMin = t => { const [a, b] = String(t || "0:0").split(":").map(Number); return (a || 0) * 60 + (b || 0); };
+const toHM = m => { m = ((Math.round(m) % 1440) + 1440) % 1440; return String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0"); };
+const r15 = m => Math.round(m / 15) * 15;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const DOW = ["domingo","segunda","terça","quarta","quinta","sexta","sábado"];
+const MON = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+const dLabel = s => { const d = parseISO(s); return `${d.getDate()} ${MON[d.getMonth()]}`; };
+const dShort = s => { const d = parseISO(s); return String(d.getDate()).padStart(2,"0") + "/" + String(d.getMonth()+1).padStart(2,"0"); };
+
+/* ======================= ÍCONES ======================= */
+const ICONS = {
+  home:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
+  flame:'<path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.2 1-3.6 2.2-4.8.3 1.8 1.3 2.8 2.3 2.8 0-3 .5-5.5.5-8z"/>',
+  plate:'<circle cx="12.5" cy="12" r="6.5"/><circle cx="12.5" cy="12" r="3.2"/><path d="M2.5 3v4.5a1.4 1.4 0 0 0 2.8 0V3M3.9 8.5V21"/><path d="M21.5 3c-1.6 1-2.2 3-2.2 6h2.2v12"/>',
+  scale:'<rect x="3" y="3.5" width="18" height="17" rx="4"/><path d="M7.5 10a5 5 0 0 1 9 0"/><path d="M12 10.5l1.6-2.6"/>',
+  dumbbell:'<rect x="4.5" y="6" width="3.2" height="12" rx="1"/><rect x="16.3" y="6" width="3.2" height="12" rx="1"/><path d="M2.5 9.5v5M21.5 9.5v5M7.7 12h8.6"/>',
+  drop:'<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/><path d="M9 14.5a3 3 0 0 0 3 3"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  bell:'<path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>', minus:'<path d="M5 12h14"/>',
+  x:'<path d="M6 6l12 12M18 6L6 18"/>',
+  trash:'<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+  chevL:'<path d="M15 6l-6 6 6 6"/>', chevR:'<path d="M9 6l6 6-6 6"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
+  star:'<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
+  copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>',
+  check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+  alert:'<path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17h.01"/>',
+  up:'<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
+  down:'<path d="M3 7l6 6 4-4 8 8"/><path d="M15 17h6v-6"/>',
+  equal:'<path d="M5 9h14M5 15h14"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  moon:'<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
+  coffee:'<path d="M4 9h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M8 3v3M12 3v3"/>',
+  apple:'<path d="M12 7c-2-1.5-7-1.5-7 4.5 0 4 2.5 8.5 5 8.5 1 0 1.3-.5 2-.5s1 .5 2 .5c2.5 0 5-4.5 5-8.5 0-6-5-6-7-4.5z"/><path d="M12 7c0-2 1-3.5 3-4"/>',
+  bowl:'<path d="M3 11h18a9 9 0 0 1-18 0z"/><path d="M8 7.5c0-1.5 1-2 1-3.5M12 7.5c0-1.5 1-2 1-3.5M16 7.5c0-1.5 1-2 1-3.5"/>',
+  bolt:'<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
+  trophy:'<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8M9 17h6"/>',
+  play:'<path d="M7 5l12 7-12 7z"/>',
+  timer:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 1.5M9 2h6"/>',
+  edit:'<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
+  calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  whistle:'<path d="M4 12a6 6 0 1 0 12 0V8h5V5H10a6 6 0 0 0-6 7z"/><circle cx="10" cy="12" r="2"/>',
+  target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
+  ruler:'<path d="M3 17L17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/>',
+  book:'<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5"/><path d="M9 8h6"/>',
+  list:'<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/>',
+  history:'<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 8v4l3 2"/>',
+  link:'<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+  camera:'<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+  sparkle:'<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>',
+  swap:'<path d="M7 4L3 8l4 4"/><path d="M3 8h14"/><path d="M17 20l4-4-4-4"/><path d="M21 16H7"/>',
+  pill:'<rect x="3" y="8.5" width="18" height="7" rx="3.5" transform="rotate(-40 12 12)"/><path d="M9.2 8.8l5.9 6.6"/>',
+  video:'<rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3"/>',
+  file:'<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 13h6M9 17h6"/>',
+  image:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-8 9"/>',
+  medal:'<circle cx="12" cy="15" r="6"/><path d="M8.5 10L6 3h4l2 4 2-4h4l-2.5 7"/><path d="M12 12.5l.9 1.8 2 .3-1.4 1.4.3 2-1.8-1-1.8 1 .3-2-1.4-1.4 2-.3z"/>',
+  user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  grid:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/>',
+  chick:'<path d="M7 14a5 5 0 1 0 10 0c0-2.5-1.5-4-3-4.6A3 3 0 1 0 9 7c0 .9.3 1.6.8 2.2C8.1 10 7 11.8 7 14z"/><path d="M7.5 6.5L5 6l1.5 2"/><circle cx="10.5" cy="6.5" r=".6" fill="currentColor"/>',
+  crown:'<path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/>',
+  menu:'<path d="M4 7h16M4 12h16M4 17h16"/>',
+  eq_barra:'<path d="M1.5 12h21"/><rect x="4" y="6.5" width="2.6" height="11" rx="1"/><rect x="17.4" y="6.5" width="2.6" height="11" rx="1"/><rect x="6.6" y="8.5" width="2" height="7" rx=".8"/><rect x="15.4" y="8.5" width="2" height="7" rx=".8"/>',
+  eq_halter:'<rect x="4.5" y="6" width="3.2" height="12" rx="1"/><rect x="16.3" y="6" width="3.2" height="12" rx="1"/><path d="M2.5 9.5v5M21.5 9.5v5M7.7 12h8.6"/>',
+  eq_polia:'<path d="M4 2v20M20 2v20M4 3h16"/><circle cx="12" cy="6" r="2"/><path d="M12 8v7"/><path d="M8.5 15h7l-1 3h-5z"/>',
+  eq_maquina:'<rect x="3" y="3" width="6" height="18" rx="1"/><path d="M3 8h6M3 13h6"/><path d="M9 17h7l4 4"/><path d="M14 17V9h5"/>',
+  eq_corpo:'<circle cx="12" cy="4.5" r="2"/><path d="M5 9l7 1 7-1M12 10v5l-3 6M12 15l3 6"/>'
+};
+const ic = (n, extra = "") => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${extra}>${ICONS[n] || ""}</svg>`;
+const LOGO_OLD = `<rect x="2" y="2" width="44" height="44" rx="12" fill="var(--accent)"/><path d="M16.5 22.5c-1.2-4.4 1.6-7.2 4.3-5.4.4-3.9 6.4-3.9 6.8 0 2.7-1.8 5.5 1 4.3 5.4z" fill="var(--prot)"/><g fill="var(--on-accent)"><rect x="7.5" y="20" width="5" height="15" rx="1.6"/><rect x="35.5" y="20" width="5" height="15" rx="1.6"/><rect x="12.5" y="23" width="3.6" height="9" rx="1.1"/><rect x="31.9" y="23" width="3.6" height="9" rx="1.1"/><rect x="16" y="26" width="16" height="3" rx="1"/></g>`;
+
+/* ======================= ARMAZENAMENTO ======================= */
+const LS = "desfr:";
+const Store = {
+  mem:{}, db:null, uid:null, t:{}, busy:{}, again:{},
+  init(){ try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith(LS)) { try { this.mem[k.slice(LS.length)] = JSON.parse(localStorage.getItem(k)); } catch(e){} } } } catch(e){} },
+  get(k){ return this.mem[k]; },
+  put(k, v){ v = JSON.parse(JSON.stringify(v)); v._ts = Date.now(); this.mem[k] = v; this.local(k, v); this.queue(k); },
+  del(k){ this.mem[k] = null; this.local(k, null); this.queue(k); },
+  local(k, v){ try { v == null ? localStorage.removeItem(LS + k) : localStorage.setItem(LS + k, JSON.stringify(v)); } catch(e){} },
+  keys(prefix){ return Object.keys(this.mem).filter(k => k.startsWith(prefix) && this.mem[k]); },
+  queue(k){ if (!this.db) return; clearTimeout(this.t[k]); setSync("saving"); this.t[k] = setTimeout(() => this.flush(k), 800); },
+  async flush(k){
+    if (this.busy[k]) { this.again[k] = true; return; }
+    this.busy[k] = true;
+    try { const ref = this.db.collection("data/users/" + this.uid).doc(k); const v = this.mem[k]; if (v == null) await ref.delete(); else await ref.set(v); setSync("ok"); }
+    catch(e){ console.warn(e); setSync(e && e.code === "quota_exceeded" ? "quota" : "err"); }
+    this.busy[k] = false;
+    if (this.again[k]) { this.again[k] = false; this.flush(k); }
+  },
+  async connect(){
+    try {
+      if (!window.claude || !window.claude.use) return;
+      const [db, user] = await Promise.all([window.claude.use("db"), window.claude.use("user")]);
+      if (!db || !user) return;
+      const id = await user.id(); if (!id) return;
+      this.db = db; this.uid = id;
+      const snap = await db.collection("data/users/" + id).limit(1000).get();
+      const remote = {}; snap.docs.forEach(d => { if (d.exists) remote[d.id] = d.data(); });
+      let changed = false;
+      for (const k in remote) { const r = remote[k], l = this.mem[k]; if (!l || (r._ts || 0) > (l._ts || 0)) { this.mem[k] = JSON.parse(JSON.stringify(r)); this.local(k, this.mem[k]); changed = true; } }
+      const push = Object.keys(this.mem).filter(k => this.mem[k] && (!remote[k] || (this.mem[k]._ts || 0) > (remote[k]._ts || 0)));
+      for (const k of push) await this.flush(k);
+      setSync("ok");
+      if (changed) render();
+    } catch(e){ console.warn(e); setSync("err"); }
+  }
+};
+function setSync(s){
+  const txt = {ok:"Sincronizado na sua conta", saving:"Salvando…", err:"Sem conexão · salvo no aparelho", quota:"Espaço cheio · salvo no aparelho", local:"Salvo neste aparelho"}[s] || "";
+  const short = {ok:"Sincronizado", saving:"Salvando…", err:"Offline", quota:"Cheio", local:"Local"}[s] || "";
+  [["sync1", txt], ["sync2", short]].forEach(([id, t]) => { const el = document.getElementById(id); if (el) { el.className = "sync " + (s === "ok" ? "ok" : (s === "err" || s === "quota") ? "err" : ""); el.querySelector("span").textContent = t; } });
+}
+
+/* ======================= PERFIL & CÁLCULOS ======================= */
+const DEF_PROFILE = {sex:"m", age:25, weight:70, height:175, act:1.55, goal:"bulk", pkg:2.0, fkg:0.8, bf:"", formula:"mifflin",
+  wake:"06:30", sleep:"22:30", meals:5, mealTimes:null, trainMin:60, hot:false, remMeals:false, remWater:false, remSupps:false, edited:false, nick:"",
+  supps:[{id:"s1",n:"Creatina",dose:"5 g",time:"08:00",on:true},{id:"s2",n:"Whey protein",dose:"30 g",time:"19:30",on:false},{id:"s3",n:"Multivitamínico",dose:"1 cápsula",time:"12:30",on:false}], agenda:{}};
+const P = () => Object.assign({}, DEF_PROFILE, (Store.get("profile") || {}).p || {});
+function setP(patch){ const p = Object.assign(P(), patch, {edited:true}); Store.put("profile", {p}); }
+const ACTS = [
+  [1.2,"Sedentário","Pouco ou nenhum exercício, trabalho sentado"],
+  [1.375,"Levemente ativo","Treino leve 1–3x por semana"],
+  [1.55,"Moderadamente ativo","Musculação 3–5x por semana"],
+  [1.725,"Muito ativo","Treino intenso 6–7x por semana"],
+  [1.9,"Extremamente ativo","Treino 2x ao dia ou trabalho braçal pesado"]
+];
+const GOALS = {
+  bulk:{n:"Hipertrofia",d:"+500 kcal · superávit para ganhar massa",delta:500,ic:"up"},
+  keep:{n:"Manutenção",d:"Calorias de manutenção · recomposição",delta:0,ic:"equal"},
+  cut:{n:"Lipólise",d:"−500 kcal · déficit para perder gordura",delta:-500,ic:"down"}
+};
+function waterCalc(p){
+  const a = +p.age || 25;
+  const mlkg = a <= 17 ? 40 : a <= 55 ? 35 : a <= 65 ? 30 : 25;
+  const base = mlkg * (+p.weight || 0);
+  const train = (+p.trainMin || 0) / 60 * 500;
+  const hot = p.hot ? 500 : 0;
+  return {mlkg, base, train, hot, total: Math.round((base + train + hot) / 50) * 50};
+}
+function calc(p){
+  const w = +p.weight || 0, h = +p.height || 0, a = +p.age || 0;
+  const mif = 10 * w + 6.25 * h - 5 * a + (p.sex === "m" ? 5 : -161);
+  const bf = parseFloat(p.bf);
+  const lbm = bf > 2 && bf < 60 ? w * (1 - bf / 100) : null;
+  const katch = lbm ? 370 + 21.6 * lbm : null;
+  const useK = p.formula === "katch" && katch;
+  const bmr = useK ? katch : mif;
+  const tdee = bmr * p.act;
+  const delta = (GOALS[p.goal] || GOALS.bulk).delta;
+  const kcal = Math.round(tdee + delta);
+  const prot = Math.round(p.pkg * w), fat = Math.round(p.fkg * w);
+  const carb = Math.max(0, Math.round((kcal - prot * 4 - fat * 9) / 4));
+  return {mif, katch, bmr, tdee, delta, kcal, prot, fat, carb, lbm, useK, water: waterCalc(p)};
+}
+const MEAL_NAMES = {
+  3:["Café da manhã","Almoço","Jantar"],
+  4:["Café da manhã","Almoço","Lanche da tarde","Jantar"],
+  5:["Café da manhã","Lanche da manhã","Almoço","Lanche da tarde","Jantar"],
+  6:["Café da manhã","Lanche da manhã","Almoço","Lanche da tarde","Jantar","Ceia"]
+};
+function dayWindow(p){ const w = toMin(p.wake); let s = toMin(p.sleep); if (s <= w) s += 1440; return [w, s]; }
+function mealPlan(p){
+  const n = clamp(+p.meals || 5, 3, 6), [w, s] = dayWindow(p);
+  const first = w + 30, step = Math.max(60, (s - 120 - first) / (n - 1));
+  return MEAL_NAMES[n].map((name, i) => ({name, time: (p.mealTimes && p.mealTimes.length === n && p.mealTimes[i]) ? p.mealTimes[i] : toHM(r15(first + step * i))}));
+}
+function waterPlan(p){
+  const total = waterCalc(p).total, [w, s] = dayWindow(p), end = s - 60;
+  const n = clamp(Math.round(total / 300), 6, 14), step = (end - w) / (n - 1);
+  const ml = Math.round(total / n / 10) * 10;
+  return Array.from({length:n}, (_, i) => ({time: toHM(r15(w + step * i)), ml}));
+}
+
+/* ======================= DIETA: DADOS ======================= */
+const dayKey = d => "day-" + d;
+function getDay(d){
+  const s = Store.get(dayKey(d));
+  if (s && s.meals) return JSON.parse(JSON.stringify(s));
+  return {meals: mealPlan(P()).map((m, i) => ({id:"m" + i, name:m.name, time:m.time, items:[]})), water:0};
+}
+const saveDay = (d, day) => Store.put(dayKey(d), day);
+const itemMac = it => { const r = it.g / 100; return {k:it.k * r, p:it.p * r, c:it.c * r, f:it.f * r}; };
+const sumItems = items => items.reduce((a, it) => { const m = itemMac(it); a.k += m.k; a.p += m.p; a.c += m.c; a.f += m.f; return a; }, {k:0, p:0, c:0, f:0});
+const dayTotals = day => sumItems(day.meals.flatMap(m => m.items));
+const foodsDoc = () => Object.assign({custom:[], fav:[], recent:[]}, Store.get("foods") || {});
+const allFoods = () => FOODS.concat(foodsDoc().custom);
+const findFood = id => allFoods().find(f => f.id === id);
+function mealIcon(n){ n = norm(n); if (n.includes("cafe")) return "coffee"; if (n.includes("almoco") || n.includes("jantar")) return "bowl"; if (n.includes("ceia")) return "moon"; if (n.includes("treino")) return "bolt"; if (n.includes("lanche")) return "apple"; return "plate"; }
+
+/* ======================= MEDIDAS ======================= */
+const MGROUPS = [
+  {id:"fund", n:"Fundamentais", d:"essenciais para todos", f:[
+    ["weight","Peso","kg","Em jejum, após ir ao banheiro, com o mínimo de roupa e sempre na mesma balança."],
+    ["waist","Cintura (umbigo)","cm","Fita na altura do umbigo, relaxado, após soltar o ar. Não contraia o abdômen."],
+    ["arm","Braço contraído","cm","Fazendo o muque, no ponto mais alto do pico do bíceps. Sempre o mesmo lado."],
+    ["chest","Peitoral","cm","Na altura dos mamilos, braços soltos, após uma expiração normal."],
+    ["thigh","Coxa","cm","Em pé, perna relaxada, no ponto médio entre a virilha e o joelho."]]},
+  {id:"comp", n:"Complementares", d:"para mais detalhe", f:[
+    ["neck","Pescoço","cm","Logo abaixo do pomo de adão. Usado no cálculo de gordura da Marinha."],
+    ["hip","Quadril","cm","No ponto de maior circunferência dos glúteos."],
+    ["calf","Panturrilha","cm","No ponto mais grosso, em pé."],
+    ["forearm","Antebraço","cm","Logo abaixo do cotovelo, no ponto mais largo, com o punho fechado."]]},
+  {id:"bio", n:"Composição corporal", d:"opcional", f:[
+    ["bf","% de gordura (bioimpedância ou avaliação)","%","Se você tem o valor de uma avaliação física, informe aqui."],
+    ["sf_chest","Dobra peitoral","mm","Diagonal, entre a axila e o mamilo (homens)."],
+    ["sf_abd","Dobra abdominal","mm","Vertical, 2 cm ao lado do umbigo (homens)."],
+    ["sf_thigh","Dobra da coxa","mm","Vertical, no meio da coxa, na frente (homens e mulheres)."],
+    ["sf_tri","Dobra do tríceps","mm","Vertical, atrás do braço, no meio entre ombro e cotovelo (mulheres)."],
+    ["sf_supra","Dobra suprailíaca","mm","Diagonal, logo acima da crista do quadril (mulheres)."]]}
+];
+const MFIELDS = MGROUPS.flatMap(g => g.f).concat([["abdomen","Abdômen","cm",""]]);
+const CHART_FIELDS = ["weight","waist","arm","chest","thigh","neck","hip","calf","forearm","abdomen","bf"];
+const measures = () => ((Store.get("measures") || {}).list || []).slice().sort((a, b) => a.date.localeCompare(b.date));
+function navyBF(p, m){
+  const h = +p.height, n = +m.neck, w = +m.waist, hip = +m.hip;
+  if (!h || !n || !w) return null;
+  if (p.sex === "m") { if (w - n <= 0) return null; return 495 / (1.0324 - 0.19077 * Math.log10(w - n) + 0.15456 * Math.log10(h)) - 450; }
+  if (!hip || w + hip - n <= 0) return null;
+  return 495 / (1.29579 - 0.35004 * Math.log10(w + hip - n) + 0.221 * Math.log10(h)) - 450;
+}
+
+/* Jackson & Pollock 3 dobras + Siri */
+function jp3(p, m){
+  const a = +p.age; let sum, dens;
+  if (p.sex === "m") { if (!(+m.sf_chest && +m.sf_abd && +m.sf_thigh)) return null; sum = +m.sf_chest + +m.sf_abd + +m.sf_thigh; dens = 1.10938 - 0.0008267 * sum + 0.0000016 * sum * sum - 0.0002574 * a; }
+  else { if (!(+m.sf_tri && +m.sf_supra && +m.sf_thigh)) return null; sum = +m.sf_tri + +m.sf_supra + +m.sf_thigh; dens = 1.0994921 - 0.0009929 * sum + 0.0000023 * sum * sum - 0.0001392 * a; }
+  return 495 / dens - 450;
+}
+/* % de gordura de um registro: informado > dobras > Marinha */
+function bfOf(p, m){ if (+m.bf) return {v:+m.bf, src:"informado"}; const j = jp3(p, m); if (j) return {v:j, src:"dobras (Jackson & Pollock)"}; const n = navyBF(p, m); if (n) return {v:n, src:"método da Marinha"}; return null; }
+/* média móvel de 7 dias por data */
+function movingAvg(pts, days = 7){ return pts.map(pt => { const lim = addDays(pt.x, -(days - 1)); const w = pts.filter(q => q.x >= lim && q.x <= pt.x); return {x:pt.x, y:w.reduce((a, q) => a + q.y, 0) / w.length}; }); }
+
+/* ======================= TREINOS ======================= */
+const allSessions = () => Store.keys("wk-").flatMap(k => (Store.get(k).list || [])).sort((a, b) => (b.date + (b.start || "")).localeCompare(a.date + (a.start || "")));
+const draft = () => { const d = Store.get("wkdraft"); return d && d.ex ? JSON.parse(JSON.stringify(d)) : null; };
+const saveDraft = d => d ? Store.put("wkdraft", d) : Store.del("wkdraft");
+function lastFor(exId, beforeId){ for (const s of allSessions()) { if (s.id === beforeId) continue; const e = s.ex.find(x => x.id === exId); if (e && e.sets.length) return {date:s.date, sets:e.sets}; } return null; }
+const e1rm = (kg, r) => kg * (1 + r / 30);
+const sessVolume = s => s.ex.reduce((a, e) => a + e.sets.reduce((b, st) => b + (+st.kg || 0) * (+st.r || 0), 0), 0);
+const sessSets = s => s.ex.reduce((a, e) => a + e.sets.length, 0);
+
+/* ======================= DICAS DO COACH ======================= */
+const TIPS = [
+  "Proteína distribuída em 4 a 5 refeições, com 0,3–0,4 g/kg em cada, otimiza a síntese proteica ao longo do dia.",
+  "Na dieta flexível, 80% das calorias vindas de alimentos integrais e 20% de \"livres\" é uma regra prática que funciona.",
+  "Sobrecarga progressiva é o motor da hipertrofia: tente somar 1 repetição ou um pouco de carga a cada semana.",
+  "10 a 20 séries semanais por grupo muscular é a faixa que mais aparece nos estudos para hipertrofia.",
+  "Dormir 7 a 9 horas melhora recuperação, controle de apetite e força. Sono também é treino.",
+  "Em déficit, mantenha a proteína alta (2,0–2,2 g/kg) e o treino pesado para preservar massa magra.",
+  "Pese-se pela manhã, em jejum, após ir ao banheiro. Olhe a média da semana, não o número do dia.",
+  "Ganho de 0,25–0,5% do peso corporal por semana é um bom ritmo de bulking com pouco acúmulo de gordura.",
+  "Treine perto da falha: terminar a série com 1 a 3 repetições \"no tanque\" gera ótimo estímulo com menos fadiga.",
+  "Carboidrato antes e depois do treino ajuda no desempenho e na reposição de glicogênio.",
+  "A creatina monohidratada (3–5 g/dia, todo dia) é o suplemento com mais evidência para força e massa magra.",
+  "Fibras: mire em 25–35 g por dia com frutas, verduras, feijões e grãos integrais."
+];
+</script>

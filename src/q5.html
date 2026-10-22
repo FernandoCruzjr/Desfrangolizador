@@ -1,0 +1,304 @@
+
+<script>
+/* ======================= COMPONENTES ======================= */
+function niceStep(raw){ if (raw <= 0) return 1; const p = 10 ** Math.floor(Math.log10(raw)); const n = raw / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * p; }
+/* gráfico de linhas com uma ou mais séries (mesmo eixo) */
+function lineChartM(series, o = {}){
+  series = series.filter(s => s.pts && s.pts.length);
+  if (!series.length) return `<div class="chart-empty">${ic("up")}<b>${esc(o.empty || "Nenhum registro ainda")}</b><span>${esc(o.emptySub || "")}</span></div>`;
+  const mini = !!o.mini, W = o.w || 640, H = o.h || 230;
+  const pl = mini ? 6 : 46, pr = mini ? 8 : 18, pt = mini ? 8 : 14, pb = mini ? 8 : 30;
+  const allX = [...new Set(series.flatMap(s => s.pts.map(p => p.x)))].sort();
+  const ts = x => parseISO(x).getTime();
+  let x0 = ts(allX[0]), x1 = ts(allX[allX.length - 1]); if (x0 === x1) { x0 -= 3 * 864e5; x1 += 3 * 864e5; }
+  const ys = series.flatMap(s => s.pts.map(p => p.y));
+  let y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const pad = Math.max((y1 - y0) * 0.18, Math.abs(y1) * 0.02, 0.5); y0 -= pad; y1 += pad;
+  const step = niceStep((y1 - y0) / 4); y0 = Math.floor(y0 / step) * step; y1 = Math.ceil(y1 / step) * step;
+  const X = t => pl + (t - x0) / (x1 - x0) * (W - pl - pr);
+  const Y = v => pt + (1 - (v - y0) / (y1 - y0)) * (H - pt - pb);
+  let grid = "";
+  if (!mini) {
+    for (let v = y0; v <= y1 + step / 2; v += step) { const y = Y(v); grid += `<line class="grid-l" x1="${pl}" x2="${W - pr}" y1="${y}" y2="${y}"/><text class="ax" x="${pl - 8}" y="${y + 4}" text-anchor="end">${fmt(v, step < 1 ? 1 : 0)}</text>`; }
+    const lab = allX.length > 2 ? [0, Math.floor((allX.length - 1) / 2), allX.length - 1] : allX.map((_, i) => i);
+    [...new Set(lab)].forEach(i => { const x = X(ts(allX[i])); grid += `<text class="ax" x="${x}" y="${H - 8}" text-anchor="${allX.length === 1 ? "middle" : i === 0 ? "start" : i === allX.length - 1 ? "end" : "middle"}">${dShort(allX[i])}</text>`; });
+  }
+  const gid = "g" + Math.random().toString(36).slice(2, 8);
+  let marks = "";
+  series.forEach((s, si) => {
+    const pts = s.pts.map(p => [X(ts(p.x)), Y(p.y)]);
+    const line = pts.map((q, i) => (i ? "L" : "M") + q[0].toFixed(1) + " " + q[1].toFixed(1)).join(" ");
+    if (s.area) marks += `<defs><linearGradient id="${gid}${si}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${s.color}" stop-opacity=".32"/><stop offset="1" stop-color="${s.color}" stop-opacity="0"/></linearGradient></defs><path d="${line} L${pts[pts.length-1][0].toFixed(1)} ${H - pb} L${pts[0][0].toFixed(1)} ${H - pb} Z" fill="url(#${gid}${si})"/>`;
+    if (!s.noLine) marks += `<path d="${line}" fill="none" stroke="${s.color}" stroke-width="${s.width || 2.2}" ${s.dash ? `stroke-dasharray="${s.dash}"` : ""} stroke-linejoin="round" stroke-linecap="round"/>`;
+    if (s.dots && !mini) marks += pts.map(q => `<circle cx="${q[0]}" cy="${q[1]}" r="${s.noLine ? 3.6 : 3}" fill="${s.noLine ? s.color : "var(--bg)"}" stroke="${s.noLine ? "var(--bg)" : s.color}" stroke-width="1.6"/>`).join("");
+    if (!s.noEnd) { const l = pts[pts.length - 1]; marks += `<circle cx="${l[0]}" cy="${l[1]}" r="${mini ? 4 : 5.5}" fill="${s.color}" stroke="var(--bg)" stroke-width="2"/>`; }
+  });
+  const hov = allX.map(x => [X(ts(x)), x, series.map(s => { const p = s.pts.find(q => q.x === x); return p ? [Y(p.y), p.y] : null; })]);
+  const data = esc(JSON.stringify({h:hov, n:series.map(s => s.name || ""), c:series.map(s => s.color), u:o.unit || ""}));
+  const legend = series.length > 1 ? `<div class="legend">${series.map(s => `<span><i class="${s.noLine ? "dot2" : ""}" style="background:${s.color}"></i>${esc(s.name)}</span>`).join("")}</div>` : "";
+  return `${legend}<div class="chart" data-pts="${data}" data-w="${W}"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.label || "Gráfico")}">${grid}${marks}
+    <line class="xh" x1="0" x2="0" y1="${pt}" y2="${H - pb}" stroke="var(--faint)" stroke-dasharray="3 3" opacity="0"/><circle class="hd" r="6" fill="var(--accent)" stroke="var(--bg)" stroke-width="2" opacity="0"/></svg><div class="tt" hidden></div></div>`;
+}
+function lineChart(points, o = {}){ return lineChartM([{pts:points, color:o.color || "var(--accent)", area:true, dots:true, name:o.label || ""}], o); }
+function mountCharts(root){
+  root.querySelectorAll(".chart[data-pts]").forEach(ch => {
+    const D = JSON.parse(ch.dataset.pts), W = +ch.dataset.w;
+    const svg = ch.querySelector("svg"), xh = svg.querySelector(".xh"), hd = svg.querySelector(".hd"), tt = ch.querySelector(".tt");
+    const move = e => {
+      const r = svg.getBoundingClientRect(), sx = (e.clientX - r.left) / r.width * W;
+      let best = D.h[0]; D.h.forEach(p => { if (Math.abs(p[0] - sx) < Math.abs(best[0] - sx)) best = p; });
+      const first = best[2].find(v => v);
+      xh.setAttribute("x1", best[0]); xh.setAttribute("x2", best[0]); xh.setAttribute("opacity", 1);
+      if (first) { hd.setAttribute("cx", best[0]); hd.setAttribute("cy", first[0]); hd.setAttribute("opacity", 1); }
+      tt.hidden = false;
+      tt.innerHTML = `${dLabel(best[1])}` + best[2].map((v, i) => v ? `<br>${D.n.length > 1 ? esc(D.n[i]) + ": " : ""}<b>${fmt(v[1], 1)} ${esc(D.u)}</b>` : "").join("");
+      tt.style.left = Math.min(Math.max(best[0] / W * r.width, 60), r.width - 60) + "px"; tt.style.top = ((first ? first[0] : 20) / W * r.width) + "px";
+    };
+    const leave = () => { xh.setAttribute("opacity", 0); hd.setAttribute("opacity", 0); tt.hidden = true; };
+    svg.addEventListener("pointermove", move); svg.addEventListener("pointerdown", move); svg.addEventListener("pointerleave", leave);
+  });
+}
+
+function ring(val, target, big = true){
+  const r = 70, C = 2 * Math.PI * r, pct = target ? val / target : 0, over = pct > 1.05;
+  const off = C * (1 - Math.min(pct, 1));
+  return `<div class="ring" ${big ? "" : 'style="width:130px;height:130px"'}><svg viewBox="0 0 170 170"><circle cx="85" cy="85" r="${r}" fill="none" stroke="var(--surface2)" stroke-width="14"/><circle cx="85" cy="85" r="${r}" fill="none" stroke="${over ? "var(--bad)" : "var(--accent)"}" stroke-width="14" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${off}"/></svg>
+  <div class="ctr"><span class="v num" style="font-family:var(--f-display)">${fmt(val)}</span><span class="l">de ${fmt(target)} kcal</span><span class="l" style="font-weight:700;color:${over ? "var(--bad)" : "var(--ink)"}">${target - val >= 0 ? "faltam " + fmt(target - val) : "passou " + fmt(val - target)}</span></div></div>`;
+}
+function macroBar(label, cls, color, val, target){
+  const pct = target ? Math.min(val / target, 1) * 100 : 0, over = target && val > target * 1.05, rest = target - val;
+  return `<div class="mbar"><div class="mbar-top"><b><i style="background:${color}"></i>${label}</b><span class="num">${fmt(val)} / ${fmt(target)} g</span></div>
+  <div class="track ${over ? "over" : ""}"><span style="width:${pct}%;background:${color}"></span></div>
+  <span class="rest">${rest >= 0 ? `Faltam <b class="num">${fmt(rest)} g</b>` : `<span style="color:var(--bad)">Passou <b class="num">${fmt(-rest)} g</b></span>`}</span></div>`;
+}
+const MC = {p:"var(--prot)", c:"var(--carb)", f:"var(--fat)"};
+
+/* ======================= NAVEGAÇÃO ======================= */
+const TABS = [{id:"inicio",n:"Início",ic:"home"},{id:"plano",n:"Plano",ic:"flame"},{id:"dieta",n:"Dieta",ic:"plate"},{id:"evolucao",n:"Evolução",ic:"up"},{id:"treino",n:"Treino",ic:"dumbbell"}];
+const UI = {tab:"inicio", date:todayISO(), wtab:"treinar", grp:"peito", metric:"weight", fcat:"all", q:"", libGrp:"peito", sel:[], gridOn:true, strEx:null};
+const VIEWER = {name:""};
+function renderNav(){
+  $("#sideNav").innerHTML = TABS.map(t => `<button data-act="go" data-arg="${t.id}" ${UI.tab === t.id ? 'aria-current="page"' : ""}>${ic(t.ic)}<span>${t.n}</span></button>`).join("");
+  const mob = ["inicio","dieta","fab","evolucao","treino"].map(id => {
+    if (id === "fab") return `<button class="fab" data-act="quick" aria-label="Ações rápidas"><span>${ic("plus")}</span></button>`;
+    const t = TABS.find(x => x.id === id);
+    return `<button data-act="go" data-arg="${t.id}" ${UI.tab === t.id || (id === "inicio" && UI.tab === "plano") ? 'aria-current="page"' : ""}>${ic(t.ic)}${t.n}</button>`;
+  });
+  $("#tabNav").innerHTML = mob.join("");
+}
+function render(){
+  renderNav();
+  const v = {inicio:vInicio, plano:vPlano, dieta:vDieta, evolucao:vEvolucao, treino:vTreino}[UI.tab] || vInicio;
+  const view = $("#view");
+  view.innerHTML = v();
+  mountCharts(view);
+  if (UI.tab === "plano") refreshPlano();
+}
+function go(tab, anchor){
+  UI.tab = tab; render(); window.scrollTo({top:0});
+  if (anchor) setTimeout(() => { const el = document.getElementById(anchor); if (el) el.scrollIntoView({behavior:"smooth", block:"start"}); }, 40);
+}
+function toast(msg){ const r = $("#toastRoot"); r.innerHTML = `<div class="toast" role="status">${esc(msg)}</div>`; clearTimeout(toast.t); toast.t = setTimeout(() => r.innerHTML = "", 2600); }
+function openModal(html, cls = ""){ $("#modalRoot").innerHTML = `<div class="scrim" data-scrim><div class="sheet ${cls}" role="dialog" aria-modal="true">${html}</div></div>`; mountCharts($("#modalRoot")); const f = $("#modalRoot [autofocus]"); if (f && matchMedia("(min-width:641px)").matches) f.focus(); }
+function closeModal(){ $("#modalRoot").innerHTML = ""; }
+const sheetHead = (title, sub = "") => `<div class="sheet-h"><div>${sub ? `<div class="eyebrow">${sub}</div>` : ""}<h2>${title}</h2></div><button class="iconbtn" data-act="closeModal" aria-label="Fechar">${ic("x")}</button></div>`;
+function saudacao(){ const h = new Date().getHours(); return h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite"; }
+const firstName = () => { const p = P(); return (p.nick || (VIEWER.name || "").split(" ")[0] || "atleta").trim(); };
+
+/* ======================= INÍCIO ======================= */
+function nextReminder(p){
+  const ev = todaysEvents(p); if (!ev.length) return null;
+  const now = new Date(), nm = now.getHours() * 60 + now.getMinutes();
+  return ev.find(e => toMin(e.t) > nm) || Object.assign({tomorrow:true}, ev[0]);
+}
+function weekStart(d = todayISO()){ const x = parseISO(d); const wd = (x.getDay() + 6) % 7; return addDays(d, -wd); }
+function todaysTemplate(p, d = todayISO()){ const id = (p.agenda || {})[parseISO(d).getDay()]; return id ? allTemplates().find(t => t.id === id) : null; }
+function ringsSVG(vals){
+  const R = [64, 50, 36];
+  return `<svg viewBox="0 0 160 160" style="width:100%;max-width:170px;height:auto;transform:rotate(-90deg)">${vals.map((v, i) => { const r = R[i], C = 2 * Math.PI * r, pct = Math.min(v.pct, 1); return `<circle cx="80" cy="80" r="${r}" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="10"/><circle cx="80" cy="80" r="${r}" fill="none" stroke="${v.color}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - pct)}"/>`; }).join("")}</svg>`;
+}
+function vInicio(){
+  const p = P(), c = calc(p), g = GOALS[p.goal] || GOALS.bulk, d = todayISO(), day = getDay(d), t = dayTotals(day);
+  const ms = measures(), wPts = ms.filter(m => +m.weight).map(m => ({x:m.date, y:+m.weight}));
+  const lean = ms.map(m => { const b = bfOf(p, m); return b && +m.weight ? {x:m.date, y:m.weight * (1 - b.v / 100)} : null; }).filter(Boolean);
+  const nr = nextReminder(p), tip = TIPS[new Date().getDate() % TIPS.length], dr = draft();
+  const wtot = c.water.total, wv = day.water || 0, wp = Math.min(wv / wtot, 1), C = 2 * Math.PI * 52;
+  const pct = (v, tt) => tt ? v / tt : 0;
+  const bars = [["Kcal", pct(t.k, c.kcal), "var(--kcal)"], ["Prot", pct(t.p, c.prot), "var(--prot)"], ["Carb", pct(t.c, c.carb), "var(--carb)"], ["Gord", pct(t.f, c.fat), "var(--fat)"], ["Água", wp, "#7FB8FF"]];
+  const ws = weekStart(), sess = allSessions(), tpl = todaysTemplate(p);
+  const meals = day.meals.map(m => ({m, s:sumItems(m.items)}));
+  const nowM = new Date().getHours() * 60 + new Date().getMinutes();
+  const upcoming = meals.filter(x => !x.m.time || toMin(x.m.time) >= nowM - 60).slice(0, 3);
+  const showMeals = (upcoming.length ? upcoming : meals.slice(-2));
+  const lv = levelInfo();
+  const initials = firstName().slice(0, 1).toUpperCase();
+  return `
+  <div class="topbar"><div class="avatar">${esc(initials)}</div><div><div class="hello">Oi, <b>${esc(firstName())}!</b> 🔥</div><div class="hello-sub">${saudacao()} · ${DOW[new Date().getDay()]}, ${dLabel(d)} · ${g.n}</div></div>
+    <button class="iconbtn" data-act="go" data-arg="plano" data-anchor="rotina" aria-label="Rotina e lembretes">${ic("bell")}${(p.remMeals || p.remWater || p.remSupps) ? '<span class="badge"></span>' : ""}</button></div>
+  ${p.edited ? "" : `<div class="banner"><span><b>Primeiro passo:</b> calcule seu gasto no Plano. Os números abaixo usam um perfil de exemplo (25 anos, 70 kg, 1,75 m).</span><button class="btn primary sm" data-act="go" data-arg="plano">Calcular meu gasto</button></div>`}
+  <h2 class="sec-t">Diário</h2>
+  <div class="grid g-dash">
+    <div class="panel tile hyd" style="cursor:default">
+      <div class="hyd-ring"><svg viewBox="0 0 120 120" style="transform:rotate(-90deg)"><defs><linearGradient id="hg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3CC8E6"/><stop offset="1" stop-color="#3D7BF5"/></linearGradient></defs><circle cx="60" cy="60" r="52" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="10"/><circle cx="60" cy="60" r="52" fill="none" stroke="url(#hg)" stroke-width="10" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - wp)}"/></svg><span class="ic">${ic("drop")}</span></div>
+      <div><div class="tile-t" style="justify-content:center">Hidratação</div><div class="num small">${fmt(wv / 1000, 1)} / ${fmt(wtot / 1000, 1)} L</div></div>
+      <div class="wbtns" style="justify-content:center"><button class="btn sm" data-act="water" data-arg="250">${ic("plus")}250</button><button class="btn sm" data-act="water" data-arg="500">${ic("plus")}500</button></div>
+    </div>
+    <div class="col">
+      <button class="panel tile" data-act="go" data-arg="dieta"><div class="row" style="justify-content:space-between;width:100%"><span class="tile-t">${ic("flame")}Calorias</span><span class="num small muted">${fmt(t.k)} / ${fmt(c.kcal)}</span></div>
+        <div class="minibars" style="width:100%">${bars.map(([n, v, col]) => `<div title="${n}"><i style="height:${Math.max(4, Math.min(v, 1) * 100)}%;background:${col}"></i><span>${Math.round(v * 100)}%</span></div>`).join("")}</div>
+        <div class="minibars" style="height:auto;width:100%">${bars.map(([n]) => `<div><span style="font-family:var(--f-body)">${n}</span></div>`).join("")}</div></button>
+      <button class="panel tile" data-act="go" data-arg="evolucao"><div class="row" style="justify-content:space-between;width:100%"><span class="tile-t">${ic("scale")}Pesos</span><span class="num small muted">${wPts.length ? fmt(wPts[wPts.length - 1].y, 1) + " kg" : "—"}</span></div>
+        <div style="width:100%">${lineChart(wPts.slice(-20), {mini:true, w:300, h:90, unit:"kg", label:"Peso recente", empty:"Registre seu peso", emptySub:""})}</div></button>
+    </div>
+  </div>
+  <h2 class="sec-t">Treinos</h2>
+  <div class="panel col" style="gap:14px">
+    <div class="wk-card"><span class="wk-ic">${ic("dumbbell")}</span><div style="min-width:0"><div class="wk-t">${dr ? "Treino em andamento" : tpl ? "Treino de hoje" : "Treino semanal"}</div><div class="wk-s">${dr ? esc(dr.name) : tpl ? esc(tpl.n) : Object.keys(p.agenda || {}).length ? "Hoje é dia de descanso na sua agenda" : "Monte sua agenda: escolha a ficha de cada dia"}</div></div></div>
+    <div class="weekdots">${[0,1,2,3,4,5,6].map(i => { const dd = addDays(ws, i), done = sess.some(s => s.date === dd), wd = parseISO(dd).getDay(), has = (p.agenda || {})[wd]; return `<div class="${done ? "done" : ""} ${dd === d ? "today" : ""}"><i>${done ? ic("check") : has ? ic("dumbbell", 'style="width:13px;height:13px;opacity:.6"') : ""}</i>${["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"][i]}</div>`; }).join("")}</div>
+    <div class="row">${dr ? `<button class="btn primary" data-act="go" data-arg="treino">${ic("play")}Continuar treino</button>` : tpl ? `<button class="btn primary" data-act="startTpl" data-arg="${tpl.id}">${ic("play")}Começar ${esc(tpl.n)}</button>` : ""}<button class="btn pill-cta" data-act="openAgenda">Agenda de treinos</button></div>
+  </div>
+  <h2 class="sec-t">Dieta</h2>
+  <div class="grid g-dash">
+    <button class="panel tile" data-act="go" data-arg="dieta" style="align-items:center"><span class="tile-t" style="align-self:flex-start">${ic("target")}Macro metas</span>
+      <div style="position:relative;width:100%;max-width:170px">${ringsSVG([{pct:pct(t.p, c.prot), color:"var(--prot)"}, {pct:pct(t.c, c.carb), color:"var(--carb)"}, {pct:pct(t.f, c.fat), color:"var(--fat)"}])}<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center"><b style="font-family:var(--f-display);font-size:24px;font-weight:800">${Math.round(pct(t.k, c.kcal) * 100)}%</b><span class="small muted">kcal</span></div></div>
+      <div class="legend" style="justify-content:center;margin:0"><span><i class="dot2" style="background:var(--prot)"></i>Prot</span><span><i class="dot2" style="background:var(--carb)"></i>Carb</span><span><i class="dot2" style="background:var(--fat)"></i>Gord</span></div></button>
+    <div class="panel tile" style="cursor:default"><span class="tile-t">${ic("clock")}Refeições planejadas</span>
+      <div class="meals-mini">${showMeals.map(x => `<button class="mm-card" data-act="go" data-arg="dieta"><span class="mi">${ic(mealIcon(x.m.name))}</span><span style="min-width:0"><span class="t" style="display:block">${esc(x.m.name)}</span><span class="s">${x.m.time || ""}${x.m.time ? " · " : ""}${x.m.items.length ? fmt(x.s.k) + " kcal" : "nada registrado"}</span></span><span class="x">${ic("chevR")}</span></button>`).join("")}</div></div>
+  </div>
+  <h2 class="sec-t">Evolução</h2>
+  <div class="panel">${lineChartM([{pts:wPts, color:"var(--accent)", name:"Peso", dots:true}, {pts:lean, color:"var(--lime)", name:"Massa magra", dots:true}], {h:200, unit:"kg", label:"Peso e massa magra", empty:"Seu gráfico de evolução aparece aqui", emptySub:"Registre peso e medidas na aba Evolução."})}</div>
+  <div class="grid g2">
+    <section class="panel"><div class="panel-h"><h2>${ic(lv.cur.ic)}Seu nível</h2><button class="btn sm ghost" data-act="badges">Conquistas ${ic("chevR")}</button></div>
+      <div class="level"><span class="level-badge">${ic(lv.cur.ic)}</span><div style="flex:1;min-width:0"><div class="level-n">${lv.cur.n}</div><div class="sub num">${fmt(lv.xp)} XP${lv.next ? ` · faltam ${fmt(lv.next.min - lv.xp)} para ${lv.next.n}` : " · nível máximo"}</div><div class="xp"><span style="width:${lv.pct * 100}%"></span></div></div></div>
+      <div class="ladder">${LEVELS.map((l, i) => `<div class="${i === lv.i ? "on" : i < lv.i ? "past" : ""}">${l.n}</div>`).join("")}</div>
+      <p class="sub" style="margin-top:10px">${lv.streak ? `Sequência de <b>${lv.streak} dia${lv.streak > 1 ? "s" : ""}</b> com dieta ou treino registrado.` : "Registre dieta ou treino hoje para começar uma sequência."}</p></section>
+    <section class="panel"><div class="panel-h"><h2>${ic("pill")}Suplementos de hoje</h2><button class="btn sm ghost" data-act="go" data-arg="plano" data-anchor="supps">Editar</button></div>${suppChecklist(d)}</section>
+  </div>
+  <section class="panel" id="relatorio"><div class="panel-h"><h2>${ic("sparkle")}Relatório da semana</h2><div class="row"><button class="btn sm" data-act="aiReport">${ic("sparkle")}Análise do coach com IA</button><button class="btn sm ghost" data-act="pdf">${ic("file")}PDF</button></div></div>${weeklyDiag()}<div id="ai-report" class="report" style="margin-top:12px"></div></section>
+  <section class="panel row" style="flex-wrap:nowrap;align-items:flex-start"><span class="level-badge" style="width:44px;height:44px;border-radius:12px">${ic("whistle")}</span><div><div class="eyebrow" style="margin-bottom:4px">Dica do coach</div><p>${esc(tip)}</p>${nr ? `<p class="sub" style="margin-top:6px">${ic("bell", 'style="width:13px;height:13px;display:inline;vertical-align:-2px"')} Próximo lembrete ${nr.tomorrow ? "amanhã " : ""}às <b class="num">${nr.t}</b>: ${esc(nr.label)}.</p>` : ""}</div></section>`;
+}
+function waterBlock(day, c){
+  const tot = c.water.total, v = day.water || 0, pct = Math.min(v / tot, 1);
+  const lvl = 78 - 66 * pct;
+  return `<div class="water-big"><svg class="glass" viewBox="0 0 64 88" aria-hidden="true"><defs><clipPath id="gl"><path d="M8 6h48l-6 76H14z"/></clipPath></defs><path d="M8 6h48l-6 76H14z" fill="rgba(0,0,0,.3)"/><rect x="0" y="${lvl}" width="64" height="90" fill="#3CC8E6" opacity=".85" clip-path="url(#gl)"/><path d="M8 6h48l-6 76H14z" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="2"/></svg>
+  <div><div class="stat"><span class="lbl">Bebido hoje</span><div class="v">${fmt(v / 1000, 2)}<small>de ${fmt(tot / 1000, 1)} L</small></div><div class="d">${v >= tot ? "Meta batida. Boa!" : `Faltam ${fmt(tot - v)} ml · cerca de ${Math.ceil((tot - v) / 250)} copos`}</div></div>
+  <div class="wbtns" style="margin-top:10px"><button class="btn sm" data-act="water" data-arg="250">${ic("plus")}250 ml</button><button class="btn sm" data-act="water" data-arg="500">${ic("plus")}500 ml</button><button class="btn sm ghost" data-act="water" data-arg="-250" aria-label="Remover 250 ml">${ic("minus")}</button></div></div></div>`;
+}
+
+/* ======================= PLANO ======================= */
+function vPlano(){
+  const p = P(), c = calc(p);
+  return `
+  <div class="ph"><div><div class="eyebrow">Gasto calórico · macros · água · rotina</div><h1>Seu plano</h1><p class="lede">Calculamos sua taxa metabólica basal pela equação de Mifflin-St Jeor, multiplicamos pelo seu nível de atividade e aplicamos o objetivo. Tudo recalcula enquanto você digita.</p></div></div>
+  ${p.edited ? "" : `<div class="banner"><span><b>Valores de exemplo.</b> Troque pelos seus dados e o app salva automaticamente.</span></div>`}
+  <div class="grid g-calc">
+    <section class="panel"><div class="panel-h"><h2>${ic("edit")}Seus dados</h2></div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="field"><label for="f-nick">Como quer ser chamado</label><input id="f-nick" class="input" type="text" value="${esc(p.nick)}" placeholder="${esc((VIEWER.name || "").split(" ")[0] || "Seu nome")}" data-bind="nick" autocomplete="off"></div>
+        <div class="field"><span class="lbl">Sexo biológico</span><div class="seg" role="group"><button data-act="setp" data-k="sex" data-v="m" aria-pressed="${p.sex === "m"}">Masculino</button><button data-act="setp" data-k="sex" data-v="f" aria-pressed="${p.sex === "f"}">Feminino</button></div></div>
+        <div class="fields">
+          ${numField("age","Idade",p.age,"anos",1)}${numField("weight","Peso",p.weight,"kg",0.1)}
+          ${numField("height","Altura",p.height,"cm",1)}${numField("bf","% gordura",p.bf,"%",0.1,"opcional")}
+        </div>
+        <div class="field"><span class="lbl">Nível de atividade</span><div class="acts">${ACTS.map(a => `<button class="act" data-act="setp" data-k="act" data-v="${a[0]}" aria-pressed="${+p.act === a[0]}"><span class="af">×${String(a[0]).replace(".", ",")}</span><span><span class="at">${a[1]}</span><br><span class="ad">${a[2]}</span></span></button>`).join("")}</div></div>
+      </div>
+    </section>
+    <div style="display:flex;flex-direction:column;gap:20px;min-width:0">
+      <section class="panel"><div class="panel-h"><h2>${ic("flame")}Energia</h2>${c.katch ? `<div class="seg"><button data-act="setp" data-k="formula" data-v="mifflin" aria-pressed="${!c.useK}">Mifflin-St Jeor</button><button data-act="setp" data-k="formula" data-v="katch" aria-pressed="${!!c.useK}">Katch-McArdle</button></div>` : `<span class="sub">Mifflin-St Jeor</span>`}</div>
+        <div id="energy-out"></div>
+        <div class="lbl" style="margin:16px 0 8px">Objetivo</div>
+        <div class="goals" id="goals-out"></div>
+      </section>
+      <section class="panel"><div class="panel-h"><h2>${ic("target")}Macronutrientes</h2><span class="sub">Proteína e gordura por kg; carboidrato completa as calorias</span></div>
+        <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px">
+          <div class="slider-row"><span class="row" style="gap:7px"><i class="dot c-p"></i><b>Proteína</b></span><input id="r-pkg" type="range" min="1.6" max="2.2" step="0.1" value="${p.pkg}" data-bind="p" data-k="pkg" aria-label="Proteína em gramas por kg"><span class="sv" id="pkg-v"></span></div>
+          <div class="slider-row"><span class="row" style="gap:7px"><i class="dot c-f"></i><b>Gordura</b></span><input id="r-fkg" type="range" min="0.6" max="1.2" step="0.05" value="${p.fkg}" data-bind="p" data-k="fkg" aria-label="Gordura em gramas por kg"><span class="sv" id="fkg-v"></span></div>
+        </div>
+        <div id="macro-out"></div>
+      </section>
+    </div>
+  </div>
+  <section class="panel" id="agua"><div class="panel-h"><h2>${ic("drop")}Água individualizada</h2><span class="sub">ml por kg conforme a idade, mais treino e clima</span></div>
+    <div class="grid g2">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        ${numField("trainMin","Minutos de treino por dia",p.trainMin,"min",5)}
+        <button class="switch" data-act="toggle" data-k="hot" aria-pressed="${!!p.hot}">${ic("sun")}<span style="flex:1"><span class="st">Clima quente ou suor intenso</span><br><span class="sd">Acrescenta 500 ml por dia</span></span><span class="sw"></span></button>
+      </div>
+      <div id="water-out"></div>
+    </div>
+  </section>
+  <section class="panel" id="rotina"><div class="panel-h"><h2>${ic("clock")}Rotina e lembretes</h2><span class="sub">Seus horários definem quando comer e beber água</span></div>
+    <div class="grid g2">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="fields">
+          <div class="field"><label for="f-wake">${"Acordo às"}</label><input id="f-wake" class="input" type="time" value="${p.wake}" data-bind="t" data-k="wake"></div>
+          <div class="field"><label for="f-sleep">Durmo às</label><input id="f-sleep" class="input" type="time" value="${p.sleep}" data-bind="t" data-k="sleep"></div>
+        </div>
+        <div class="field"><span class="lbl">Refeições por dia</span><div class="seg">${[3,4,5,6].map(n => `<button data-act="setmeals" data-v="${n}" aria-pressed="${+p.meals === n}">${n}</button>`).join("")}</div></div>
+        <div><div class="row" style="margin-bottom:8px"><span class="lbl">Horários das refeições</span><span class="spacer"></span>${p.mealTimes ? `<button class="btn sm ghost" data-act="resetTimes">Recalcular pela rotina</button>` : `<span class="sub">Sugeridos · toque para mudar</span>`}</div>
+          <div class="mt-list" id="meal-times">${mealPlan(p).map((m, i) => `<div class="mt"><span class="mi">${ic(mealIcon(m.name))}</span><span style="font-weight:600;font-size:14px">${m.name}</span><input class="input num" type="time" value="${m.time}" data-bind="mealtime" data-i="${i}" aria-label="Horário: ${m.name}"></div>`).join("")}</div>
+        </div>
+      </div>
+      <div id="rot-out"></div>
+    </div>
+  </section>
+  <section class="panel" id="supps"><div class="panel-h"><h2>${ic("pill")}Suplementação</h2><span class="sub">Horários entram nos lembretes e no checklist do dia</span></div>
+    <div class="col">${(p.supps || []).map((s, i) => `<div class="supp"><input class="input" value="${esc(s.n)}" data-bind="supp" data-i="${i}" data-k="n" aria-label="Suplemento"><input class="input sdose" value="${esc(s.dose)}" data-bind="supp" data-i="${i}" data-k="dose" aria-label="Dose"><input class="input num" type="time" value="${s.time}" data-bind="supp" data-i="${i}" data-k="time" aria-label="Horário"><button class="iconbtn" data-act="delSupp" data-arg="${i}" aria-label="Remover ${esc(s.n)}">${ic("trash")}</button></div>`).join("")}
+      <div class="row"><button class="btn sm" data-act="addSupp">${ic("plus")}Adicionar suplemento</button>${["Creatina","Whey protein","Pré-treino","Ômega 3","Cafeína","Vitamina D"].filter(n => !(p.supps || []).some(s => s.n === n)).map(n => `<button class="chip" data-act="addSupp" data-arg="${n}">${ic("plus", 'style="width:12px;height:12px"')}${n}</button>`).join("")}</div>
+      <button class="switch" data-act="toggle" data-k="remSupps" aria-pressed="${!!p.remSupps}">${ic("bell")}<span style="flex:1"><span class="st">Avisar a hora dos suplementos</span><br><span class="sd">Creatina: 3–5 g por dia, todo dia, em qualquer horário. Constância é o que importa.</span></span><span class="sw"></span></button>
+    </div>
+  </section>`;
+}
+function numField(k, label, v, unit, step, ph = ""){
+  return `<div class="field"><label for="f-${k}">${label}</label><div class="input-u"><input id="f-${k}" class="input num" type="number" inputmode="decimal" step="${step}" value="${esc(v)}" placeholder="${ph}" data-bind="p" data-k="${k}"><span>${unit}</span></div></div>`;
+}
+function refreshPlano(){
+  const p = P(), c = calc(p);
+  const e = $("#energy-out"); if (!e) return;
+  e.innerHTML = `<div class="energy"><div><div class="t">Taxa metabólica basal</div><div class="v num">${fmt(c.bmr)}</div><div class="t">kcal em repouso</div></div><div><div class="t">Gasto total (GET)</div><div class="v num">${fmt(c.tdee)}</div><div class="t">TMB × ${String(p.act).replace(".", ",")}</div></div><div class="hl"><div class="t">Meta diária</div><div class="v num">${fmt(c.kcal)}</div><div class="t">${c.delta > 0 ? "+500 kcal" : c.delta < 0 ? "−500 kcal" : "manutenção"}</div></div></div>
+  ${c.lbm ? `<p class="sub" style="margin-top:8px">Massa magra estimada: <b class="num">${fmt(c.lbm, 1)} kg</b>. Com % de gordura informado, a Katch-McArdle tende a ser mais precisa para quem treina.</p>` : ""}`;
+  $("#goals-out").innerHTML = Object.entries(GOALS).map(([k, g]) => `<button class="goal" data-act="setp" data-k="goal" data-v="${k}" aria-pressed="${p.goal === k}"><span class="gi">${ic(g.ic)}</span><span class="gt">${g.n}</span><span class="gk num">${fmt(c.tdee + g.delta)}<small> kcal</small></span><span class="gd">${g.d}</span></button>`).join("");
+  $("#pkg-v").textContent = fmt(p.pkg, 1) + " g/kg"; $("#fkg-v").textContent = fmt(p.fkg, 2) + " g/kg";
+  const kp = c.prot * 4, kc = c.carb * 4, kf = c.fat * 9, kt = kp + kc + kf || 1, w = +p.weight || 1, n = clamp(+p.meals || 5, 3, 6);
+  const warn = [];
+  if (p.goal === "cut" && c.kcal < c.bmr) warn.push(`A meta de lipólise ficou abaixo da sua TMB (${fmt(c.bmr)} kcal). Prefira aumentar o gasto com passos/cardio a cortar mais comida.`);
+  if (c.carb < 80) warn.push("Sobrou pouco espaço para carboidratos. Reduza a gordura ou a proteína para manter energia no treino.");
+  $("#macro-out").innerHTML = `
+    <div class="stack" aria-hidden="true"><div style="flex-grow:${kp};background:var(--prot)">P ${Math.round(kp / kt * 100)}%</div><div style="flex-grow:${kc};background:var(--carb)">C ${Math.round(kc / kt * 100)}%</div><div style="flex-grow:${kf};background:var(--fat)">G ${Math.round(kf / kt * 100)}%</div></div>
+    <div class="tscroll" style="margin-top:12px"><table class="mtable"><thead><tr><th>Macro</th><th>Gramas</th><th>g/kg</th><th>kcal</th><th>Por refeição</th></tr></thead><tbody>
+      <tr><td><span class="row" style="gap:7px"><i class="dot c-p"></i>Proteína</span></td><td>${fmt(c.prot)} g</td><td>${fmt(c.prot / w, 1)}</td><td>${fmt(kp)}</td><td>~${fmt(c.prot / n)} g</td></tr>
+      <tr><td><span class="row" style="gap:7px"><i class="dot c-c"></i>Carboidrato</span></td><td>${fmt(c.carb)} g</td><td>${fmt(c.carb / w, 1)}</td><td>${fmt(kc)}</td><td>~${fmt(c.carb / n)} g</td></tr>
+      <tr><td><span class="row" style="gap:7px"><i class="dot c-f"></i>Gordura</span></td><td>${fmt(c.fat)} g</td><td>${fmt(c.fat / w, 1)}</td><td>${fmt(kf)}</td><td>~${fmt(c.fat / n)} g</td></tr>
+    </tbody></table></div>
+    ${warn.map(x => `<div class="note warn" style="margin-top:10px">${ic("alert")}<span>${x}</span></div>`).join("")}
+    <div class="note" style="margin-top:10px">${ic("info")}<span><b>Como ajustar:</b> pese-se 3 a 4 vezes por semana e compare as médias. ${p.goal === "bulk" ? "No bulking, mire em +0,25 a 0,5% do peso por semana. Se não subir em 2 semanas, some 100–150 kcal." : p.goal === "cut" ? "Na lipólise, mire em −0,5 a 1% do peso por semana. Se travar por 2 semanas, tire 100–150 kcal ou aumente os passos." : "Na manutenção, o peso deve oscilar dentro de ±0,5 kg na média semanal."}</span></div>`;
+  const wc = c.water;
+  $("#water-out").innerHTML = `<div class="stat"><span class="lbl">Meta diária de água</span><div class="v">${fmt(wc.total / 1000, 2)}<small>litros</small></div><div class="d">≈ ${Math.round(wc.total / 250)} copos de 250 ml</div></div>
+    <div class="wl" style="margin-top:12px"><div><span>Base: ${wc.mlkg} ml × ${fmt(p.weight, 1)} kg</span><span class="num">${fmt(wc.base)} ml</span></div><div><span>Treino: 500 ml por hora</span><span class="num">+${fmt(wc.train)} ml</span></div><div><span>Clima quente</span><span class="num">+${fmt(wc.hot)} ml</span></div><div><span>Total</span><span class="num">${fmt(wc.total)} ml</span></div></div>
+    <p class="sub" style="margin-top:10px">${wc.mlkg} ml/kg é a referência para a sua faixa de idade. Urina amarelo-clara é um bom sinal de hidratação.</p>`;
+  refreshRotina();
+}
+function gcal(title, hm, details){
+  const d = todayISO().replace(/-/g, ""), st = hm.replace(":", "");
+  let endM = toMin(hm) + 15; if (endM >= 1440) endM = 1439;
+  const en = toHM(endM).replace(":", "");
+  return "https://calendar.google.com/calendar/render?action=TEMPLATE&text=" + encodeURIComponent(title) + "&dates=" + d + "T" + st + "00/" + d + "T" + en + "00&details=" + encodeURIComponent(details) + "&recur=" + encodeURIComponent("RRULE:FREQ=DAILY");
+}
+function refreshRotina(){
+  const el = $("#rot-out"); if (!el) return;
+  const p = P(), c = calc(p), mp = mealPlan(p), wp = waterPlan(p), n = mp.length, [w, s] = dayWindow(p), nr = nextReminder(p);
+  const sleepH = (1440 - (s - w)) / 60;
+  el.innerHTML = `<div style="display:flex;flex-direction:column;gap:12px">
+    <button class="switch" data-act="toggle" data-k="remMeals" aria-pressed="${!!p.remMeals}">${ic("plate")}<span style="flex:1"><span class="st">Avisar a hora de comer</span><br><span class="sd">${n} avisos por dia, nos horários das refeições</span></span><span class="sw"></span></button>
+    <button class="switch" data-act="toggle" data-k="remWater" aria-pressed="${!!p.remWater}">${ic("drop")}<span style="flex:1"><span class="st">Avisar a hora de beber água</span><br><span class="sd">${wp.length} doses de ~${wp[0].ml} ml entre acordar e 1 h antes de dormir</span></span><span class="sw"></span></button>
+    <div><div class="lbl" style="margin-bottom:6px">Plano de água</div><div class="wchips">${wp.map(x => `<span class="wchip">${ic("drop")}${x.time} · ${x.ml} ml</span>`).join("")}</div></div>
+    ${sleepH < 7 ? `<div class="note warn">${ic("moon")}<span>Você está dormindo cerca de <b>${fmt(sleepH, 1)} h</b>. Para hipertrofia e recuperação, o ideal é de 7 a 9 horas.</span></div>` : `<div class="note">${ic("moon")}<span>Janela de sono de <b>${fmt(sleepH, 1)} h</b>. A última refeição fica pelo menos 2 h antes de dormir.</span></div>`}
+    ${(p.remMeals || p.remWater || p.remSupps) ? `<div class="note">${ic("bell")}<span>${nr ? `Próximo aviso ${nr.tomorrow ? "amanhã " : ""}às <b class="num">${nr.t}</b>: ${esc(nr.label)}. ` : ""}Os avisos tocam com o Desfrangolizador aberto (pode ficar numa aba). Para ser avisado com o app fechado, adicione os horários à sua agenda abaixo.</span></div>
+      <div><div class="lbl" style="margin-bottom:6px">Alarmes na agenda do celular (repetem todo dia)</div><div class="cal-links">
+        ${p.remMeals ? mp.map(m => `<a href="${gcal("🍽 " + m.name + " · Desfrangolizador", m.time, "Hora de comer! Meta do dia: " + fmt(c.kcal) + " kcal · " + c.prot + " g de proteína.")}" target="_blank" rel="noopener">${ic("calendar")}${m.time} ${esc(m.name)}</a>`).join("") : ""}
+        ${p.remWater ? wp.map(x => `<a href="${gcal("💧 Beber " + x.ml + " ml de água", x.time, "Meta diária: " + fmt(c.water.total) + " ml.")}" target="_blank" rel="noopener">${ic("drop")}${x.time} água</a>`).join("") : ""}
+        ${p.remSupps ? (p.supps || []).filter(s => s.time).map(s => `<a href="${gcal("💊 " + s.n + " · " + s.dose, s.time, "Lembrete de suplementação do Desfrangolizador.")}" target="_blank" rel="noopener">${ic("pill")}${s.time} ${esc(s.n)}</a>`).join("") : ""}
+      </div><div class="row" style="margin-top:8px"><button class="btn sm" data-act="copyTimes">${ic("copy")}Copiar horários para configurar alarmes</button><button class="btn sm ghost" data-act="testAlert">${ic("bell")}Testar aviso</button></div></div>` : ""}
+  </div>`;
+}
+</script>
