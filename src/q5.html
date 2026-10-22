@@ -74,21 +74,21 @@ function macroBar(label, cls, color, val, target){
 const MC = {p:"var(--prot)", c:"var(--carb)", f:"var(--fat)"};
 
 /* ======================= NAVEGAÇÃO ======================= */
-const TABS = [{id:"inicio",n:"Início",ic:"home"},{id:"plano",n:"Calculadora",ic:"flame"},{id:"dieta",n:"Dieta",ic:"plate"},{id:"evolucao",n:"Evolução",ic:"up"},{id:"treino",n:"Treino",ic:"dumbbell"}];
+const TABS = [{id:"inicio",n:"Início",ic:"home"},{id:"plano",n:"Calculadora",ic:"flame"},{id:"dieta",n:"Dieta",ic:"plate"},{id:"evolucao",n:"Evolução",ic:"up"},{id:"treino",n:"Treino",ic:"dumbbell"},{id:"social",n:"Comunidade",ic:"users"}];
 const UI = {tab:"inicio", date:todayISO(), wtab:"treinar", grp:"peito", metric:"weight", fcat:"all", q:"", libGrp:"peito", sel:[], gridOn:true, strEx:null};
 const VIEWER = {name:""};
 function renderNav(){
   $("#sideNav").innerHTML = TABS.map(t => `<button data-act="go" data-arg="${t.id}" ${UI.tab === t.id ? 'aria-current="page"' : ""}>${ic(t.ic)}<span>${t.n}</span></button>`).join("");
-  const mob = ["inicio","dieta","fab","evolucao","treino"].map(id => {
+  const mob = ["inicio","dieta","fab","treino","social"].map(id => {
     if (id === "fab") return `<button class="fab" data-act="quick" aria-label="Ações rápidas"><span>${ic("plus")}</span></button>`;
     const t = TABS.find(x => x.id === id);
-    return `<button data-act="go" data-arg="${t.id}" ${UI.tab === t.id || (id === "inicio" && UI.tab === "plano") ? 'aria-current="page"' : ""}>${ic(t.ic)}${t.n}</button>`;
+    return `<button data-act="go" data-arg="${t.id}" ${UI.tab === t.id || (id === "inicio" && (UI.tab === "plano" || UI.tab === "evolucao")) ? 'aria-current="page"' : ""}>${ic(t.ic)}${t.n}</button>`;
   });
   $("#tabNav").innerHTML = mob.join("");
 }
 function render(){
   renderNav();
-  const v = {inicio:vInicio, plano:vPlano, dieta:vDieta, evolucao:vEvolucao, treino:vTreino}[UI.tab] || vInicio;
+  const v = {inicio:vInicio, plano:vPlano, dieta:vDieta, evolucao:vEvolucao, treino:vTreino, social:typeof vSocial === "function" ? vSocial : vInicio}[UI.tab] || vInicio;
   const view = $("#view");
   view.innerHTML = v();
   mountCharts(view);

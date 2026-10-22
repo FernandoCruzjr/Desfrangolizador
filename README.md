@@ -24,3 +24,4 @@ Apresentação e como instalar: https://fernandocruzjr.github.io/Desfrangolizado
 - `vendor/supabase.js`: cliente do Supabase (v2.45.4).
 - `src/`: partes do código-fonte.
 - `supabase/schema.sql`: tabela `user_docs` com RLS.
+- `supabase/community.sql`: Comunidade (perfis, posts, curtidas, comentários, seguir, bloquear, denúncias e moderação) com RLS e o bucket `media` para fotos.
