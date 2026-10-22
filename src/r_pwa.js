@@ -104,7 +104,7 @@ Object.assign(ACT, {
 
 /* Primeira visita: mostra a apresentação uma vez. */
 setTimeout(() => {
-  if ((typeof CLOUD !== "undefined" && CLOUD.user) || Store.get("welcome") || Store.keys("day-").length || Store.keys("photo-").length || (Store.get("measures") || {}).list?.length) return;
+  if ((typeof CLOUD !== "undefined" && CLOUD.sb) || Store.get("welcome") || Store.keys("day-").length || Store.keys("photo-").length || (Store.get("measures") || {}).list?.length) return;
   Store.put("welcome", {seen:true});
   if (!$("#modalRoot").innerHTML) aboutModal(true);
 }, 1800);
