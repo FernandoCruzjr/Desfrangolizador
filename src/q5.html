@@ -118,7 +118,7 @@ function ringsSVG(vals){
   return `<svg viewBox="0 0 160 160" style="width:100%;max-width:170px;height:auto;transform:rotate(-90deg)">${vals.map((v, i) => { const r = R[i], C = 2 * Math.PI * r, pct = Math.min(v.pct, 1); return `<circle cx="80" cy="80" r="${r}" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="10"/><circle cx="80" cy="80" r="${r}" fill="none" stroke="${v.color}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - pct)}"/>`; }).join("")}</svg>`;
 }
 function vInicio(){
-  const p = P(), c = calc(p), g = GOALS[p.goal] || GOALS.bulk, d = todayISO(), day = getDay(d), t = dayTotals(day);
+  const p = P(), c = typeof calcDay === "function" ? calcDay(p, todayISO()) : calc(p), g = GOALS[p.goal] || GOALS.bulk, d = todayISO(), day = getDay(d), t = dayTotals(day);
   const ms = measures(), wPts = ms.filter(m => +m.weight).map(m => ({x:m.date, y:+m.weight}));
   const lean = ms.map(m => { const b = bfOf(p, m); return b && +m.weight ? {x:m.date, y:m.weight * (1 - b.v / 100)} : null; }).filter(Boolean);
   const nr = nextReminder(p), tip = TIPS[new Date().getDate() % TIPS.length], dr = draft();
@@ -137,7 +137,7 @@ function vInicio(){
     <button class="iconbtn" data-act="go" data-arg="plano" data-anchor="rotina" aria-label="Rotina e lembretes">${ic("bell")}${(p.remMeals || p.remWater || p.remSupps) ? '<span class="badge"></span>' : ""}</button></div>
   <button class="calc-card" data-act="go" data-arg="plano">
     <span class="calc-ic">${ic("flame")}</span>
-    <span class="calc-txt"><b>Calculadora de gasto calórico</b><span>${p.edited ? `Basal <b class="num">${fmt(c.bmr)}</b> · Total <b class="num">${fmt(c.tdee)}</b> · Meta <b class="num">${fmt(c.kcal)}</b> kcal (${g.n})` : "Descubra seu gasto basal e sua meta para ganhar massa (+500) ou secar (−500)."}</span></span>
+    <span class="calc-txt"><b>Calculadora de gasto calórico</b><span>${p.edited ? `Basal <b class="num">${fmt(c.bmr)}</b> · Total <b class="num">${fmt(c.tdee)}</b> · Meta <b class="num">${fmt(c.kcal)}</b> kcal (${g.n})${c.extra && c.extra.kcal ? ` · inclui +${fmt(c.extra.kcal)} de atividades` : ""}` : "Descubra seu gasto basal e sua meta para ganhar massa (+500) ou secar (−500)."}</span></span>
     <span class="calc-go">${p.edited ? "Ajustar" : "Calcular"}${ic("up", 'style="transform:rotate(45deg)"')}</span>
   </button>
   <h2 class="sec-t">Diário</h2>

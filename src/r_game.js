@@ -121,7 +121,7 @@ function agendaModal(){
 
 /* ======================= AÇÕES RÁPIDAS ======================= */
 function quickModal(){
-  const qa = [["flame","Calculadora de calorias","qPlano"],["plate","Adicionar alimento","qAddFood"],["camera","Foto do prato (IA)","qPhotoFood"],["drop","+250 ml de água","qWater"],["play","Iniciar treino","qTrain"],["scale","Registrar peso","qWeight"],["image","Foto de progresso","qProgress"],["bell","Lembretes","qRem"],["file","Relatório PDF","pdf"],["phone","Instalar e ajuda","about"]];
+  const qa = [["flame","Calculadora de calorias","qPlano"],["plate","Adicionar alimento","qAddFood"],["camera","Foto do prato (IA)","qPhotoFood"],["drop","+250 ml de água","qWater"],["play","Iniciar treino","qTrain"],["run","Correr com GPS","qRun"],["bolt2","Atividade extra","qAct"],["scale","Registrar peso","qWeight"],["image","Foto de progresso","qProgress"],["bell","Lembretes","qRem"],["file","Relatório PDF","pdf"],["phone","Instalar e ajuda","about"]];
   openModal(`${sheetHead("Ações rápidas")}<div class="qa-grid">${qa.map(([i, n, a]) => `<button class="qa" data-act="${a}"><span>${ic(i)}</span>${n}</button>`).join("")}</div>`);
 }
 

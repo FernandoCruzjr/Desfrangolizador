@@ -3,7 +3,7 @@
 /* ======================= DIETA ======================= */
 let FP = {m:0, f:null, g:0, view:"list"};
 function vDieta(){
-  const p = P(), c = calc(p), d = UI.date, day = getDay(d), t = dayTotals(day), isToday = d === todayISO();
+  const p = P(), d = UI.date, c = typeof calcDay === "function" ? calcDay(p, d) : calc(p), day = getDay(d), t = dayTotals(day), isToday = d === todayISO();
   const has = day.meals.some(m => m.items.length);
   return `
   <div class="ph"><div><div class="eyebrow">Dieta flexível · IIFYM</div><h1>Diário alimentar</h1><p class="lede">Monte o dia com os alimentos que você gosta. O que importa é fechar calorias e macros.</p></div>
@@ -16,6 +16,7 @@ function vDieta(){
     <aside class="d-sum" style="min-width:0">
       <section class="panel"><div class="panel-h"><h2>${ic("target")}Resumo do dia</h2><span class="pill ac">${(GOALS[p.goal] || GOALS.bulk).n}</span></div>
         <div style="display:flex;justify-content:center;margin-bottom:14px">${ring(t.k, c.kcal)}</div>
+        ${c.extra && c.extra.kcal ? `<div class="note good" style="margin-bottom:12px">${ic("run")}<span><b>+${fmt(c.extra.kcal)} kcal</b> de atividades extras somadas à meta de hoje${c.extra.water ? ` e <b>+${fmt(c.extra.water)} ml</b> de água` : ""}.</span></div>` : ""}
         <div style="display:flex;flex-direction:column;gap:12px">${macroBar("Proteína","p",MC.p,t.p,c.prot)}${macroBar("Carboidrato","c",MC.c,t.c,c.carb)}${macroBar("Gordura","f",MC.f,t.f,c.fat)}</div>
       </section>
     </aside>
@@ -199,8 +200,9 @@ function weekSets(){
 }
 function vTreino(){
   const d = draft();
-  const seg = `<div class="seg">${[["treinar","Treinar"],["biblioteca","Exercícios"],["historico","Histórico"]].map(([k, n]) => `<button data-act="wtab" data-arg="${k}" aria-pressed="${UI.wtab === k}">${n}</button>`).join("")}</div>`;
+  const seg = `<div class="seg">${[["treinar","Treinar"],["corrida","Corrida"],["biblioteca","Exercícios"],["historico","Histórico"]].map(([k, n]) => `<button data-act="wtab" data-arg="${k}" aria-pressed="${UI.wtab === k}">${n}</button>`).join("")}</div>`;
   let body = "";
+  if (UI.wtab === "corrida" && typeof runTab === "function") return `<div class="ph"><div><div class="eyebrow">Cardio · corrida · atividades extras</div><h1>Corrida e atividades</h1><p class="lede">Corra com GPS ou registre o que você fez a mais no dia. O gasto extra entra na sua meta de calorias e água.</p></div>${seg}</div>${runTab()}`;
   if (UI.wtab === "biblioteca") {
     const list = EXERCISES.filter(e => e.g === UI.libGrp);
     body = `<div class="grid g-calc"><section class="panel"><div class="panel-h"><h2>${ic("target")}Escolha o músculo</h2></div>${bodyMap(UI.libGrp)}
