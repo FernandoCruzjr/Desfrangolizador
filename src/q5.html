@@ -74,7 +74,7 @@ function macroBar(label, cls, color, val, target){
 const MC = {p:"var(--prot)", c:"var(--carb)", f:"var(--fat)"};
 
 /* ======================= NAVEGAÇÃO ======================= */
-const TABS = [{id:"inicio",n:"Início",ic:"home"},{id:"plano",n:"Plano",ic:"flame"},{id:"dieta",n:"Dieta",ic:"plate"},{id:"evolucao",n:"Evolução",ic:"up"},{id:"treino",n:"Treino",ic:"dumbbell"}];
+const TABS = [{id:"inicio",n:"Início",ic:"home"},{id:"plano",n:"Calculadora",ic:"flame"},{id:"dieta",n:"Dieta",ic:"plate"},{id:"evolucao",n:"Evolução",ic:"up"},{id:"treino",n:"Treino",ic:"dumbbell"}];
 const UI = {tab:"inicio", date:todayISO(), wtab:"treinar", grp:"peito", metric:"weight", fcat:"all", q:"", libGrp:"peito", sel:[], gridOn:true, strEx:null};
 const VIEWER = {name:""};
 function renderNav(){
@@ -133,9 +133,13 @@ function vInicio(){
   const lv = levelInfo();
   const initials = firstName().slice(0, 1).toUpperCase();
   return `
-  <div class="topbar"><div class="avatar">${esc(initials)}</div><div><div class="hello">Oi, <b>${esc(firstName())}!</b> 🔥</div><div class="hello-sub">${saudacao()} · ${DOW[new Date().getDay()]}, ${dLabel(d)} · ${g.n}</div></div>
+  <div class="topbar"><button class="avatar" data-act="profile" aria-label="Meu perfil e foto">${typeof avatarHTML === "function" ? avatarHTML(initials) : esc(initials)}</button><div><div class="hello">Oi, <b>${esc(firstName())}!</b> 🔥</div><div class="hello-sub">${saudacao()} · ${DOW[new Date().getDay()]}, ${dLabel(d)} · ${g.n}</div></div>
     <button class="iconbtn" data-act="go" data-arg="plano" data-anchor="rotina" aria-label="Rotina e lembretes">${ic("bell")}${(p.remMeals || p.remWater || p.remSupps) ? '<span class="badge"></span>' : ""}</button></div>
-  ${p.edited ? "" : `<div class="banner"><span><b>Primeiro passo:</b> calcule seu gasto no Plano. Os números abaixo usam um perfil de exemplo (25 anos, 70 kg, 1,75 m).</span><button class="btn primary sm" data-act="go" data-arg="plano">Calcular meu gasto</button></div>`}
+  <button class="calc-card" data-act="go" data-arg="plano">
+    <span class="calc-ic">${ic("flame")}</span>
+    <span class="calc-txt"><b>Calculadora de gasto calórico</b><span>${p.edited ? `Basal <b class="num">${fmt(c.bmr)}</b> · Total <b class="num">${fmt(c.tdee)}</b> · Meta <b class="num">${fmt(c.kcal)}</b> kcal (${g.n})` : "Descubra seu gasto basal e sua meta para ganhar massa (+500) ou secar (−500)."}</span></span>
+    <span class="calc-go">${p.edited ? "Ajustar" : "Calcular"}${ic("up", 'style="transform:rotate(45deg)"')}</span>
+  </button>
   <h2 class="sec-t">Diário</h2>
   <div class="grid g-dash">
     <div class="panel tile hyd" style="cursor:default">
@@ -189,7 +193,7 @@ function waterBlock(day, c){
 function vPlano(){
   const p = P(), c = calc(p);
   return `
-  <div class="ph"><div><div class="eyebrow">Gasto calórico · macros · água · rotina</div><h1>Seu plano</h1><p class="lede">Calculamos sua taxa metabólica basal pela equação de Mifflin-St Jeor, multiplicamos pelo seu nível de atividade e aplicamos o objetivo. Tudo recalcula enquanto você digita.</p></div></div>
+  <div class="ph"><div><div class="eyebrow">Gasto calórico · macros · água · rotina</div><h1>Calculadora e plano</h1><p class="lede">Calculamos sua taxa metabólica basal pela equação de Mifflin-St Jeor, multiplicamos pelo seu nível de atividade e aplicamos o objetivo. Tudo recalcula enquanto você digita.</p></div></div>
   ${p.edited ? "" : `<div class="banner"><span><b>Valores de exemplo.</b> Troque pelos seus dados e o app salva automaticamente.</span></div>`}
   <div class="grid g-calc">
     <section class="panel"><div class="panel-h"><h2>${ic("edit")}Seus dados</h2></div>
