@@ -47,9 +47,24 @@ function cloudDB(){
   };
 }
 
+/* Offline: lembra quem entrou por último e o que foi apagado sem internet. */
+const LAST_USER = "desfr-lastuser", PEND_DEL = "desfr-pending-del";
+const lsGet = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) || d; } catch (e) { return d; } };
+const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+const hasToken = () => { try { return Object.keys(localStorage).some(k => /^sb-.*-auth-token$/.test(k)); } catch (e) { return false; } };
+{
+  /* Apagou sem conexão? Guarda a chave para apagar na nuvem quando voltar. */
+  const queue0 = Store.queue;
+  Store.queue = function(k){
+    if (this.mem[k] == null && CLOUD.sb) { const pd = lsGet(PEND_DEL, []); if (!pd.includes(k)) { pd.push(k); lsSet(PEND_DEL, pd); } }
+    return queue0.call(this, k);
+  };
+}
 Store.connectWith = async function(db, id){
   this.db = db; this.uid = id; setSync("saving");
   try {
+    for (const k of lsGet(PEND_DEL, [])) { if (this.mem[k] == null) await db.collection("data/users/" + id).doc(k).delete(); }
+    lsSet(PEND_DEL, null);
     const snap = await db.collection("data/users/" + id).limit(1000).get();
     const remote = {}; snap.docs.forEach(d => { if (d.exists) remote[d.id] = d.data(); });
     let changed = false;
@@ -61,17 +76,39 @@ Store.connectWith = async function(db, id){
   } catch (e) { console.warn(e); setSync("err"); }
 };
 
+function goOffline(){
+  const lu = lsGet(LAST_USER, null);
+  if (!lu || !hasToken()) return false;
+  CLOUD.offline = true; CLOUD.user = lu; Store.db = null;
+  if (lu.name) VIEWER.name = lu.name;
+  hideGate(); setSync("err"); render();
+  return true;
+}
 async function cloudSession(session){
   const u = session && session.user;
-  if (!u) { CLOUD.user = null; Store.db = null; setSync("local"); showGate(); return; }
+  if (!u) {
+    /* Sem internet o token não renova: segue com os dados do aparelho e sincroniza quando a conexão voltar. */
+    if (hasToken() && goOffline()) return;
+    CLOUD.user = null; CLOUD.offline = false; Store.db = null; setSync("local"); showGate(); return;
+  }
   hideGate();
-  if (CLOUD.user && CLOUD.user.id === u.id) return;
+  if (CLOUD.user && CLOUD.user.id === u.id && !CLOUD.offline) return;
+  CLOUD.offline = false;
   CLOUD.user = u;
+  lsSet(LAST_USER, {id:u.id, email:u.email || "", name:(u.user_metadata && u.user_metadata.name) || "", user_metadata:u.user_metadata || {}});
   const nm = (u.user_metadata && u.user_metadata.name) || "";
   if (nm) VIEWER.name = nm;
   await Store.connectWith(cloudDB(), u.id);
   if (UI.tab === "inicio" || UI.tab === "social") render();
 }
+async function cloudResync(){
+  if (!CLOUD.sb || !navigator.onLine) return;
+  if (CLOUD.offline) {
+    try { const r = await CLOUD.sb.auth.getSession(); if (r.data && r.data.session) await cloudSession(r.data.session); else if (!hasToken()) cloudSession(null); } catch (e) {}
+  } else if (CLOUD.user && Store.db) await Store.connectWith(Store.db, CLOUD.user.id);
+}
+window.addEventListener("online", () => setTimeout(cloudResync, 1500));
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && CLOUD.offline) cloudResync(); });
 if (CLOUD.sb) {
   CLOUD.sb.auth.onAuthStateChange((ev, session) => {
     setTimeout(() => {
@@ -171,6 +208,8 @@ async function logout(){
   confirmBox("Sair da conta?", "Seus dados continuam salvos na nuvem. Este aparelho fica limpo até você entrar de novo.", "Sair", async () => {
     for (let i = 0; i < 20 && (Object.values(Store.busy).some(Boolean) || Object.values(Store.t).some(Boolean)); i++) { Object.keys(Store.t).forEach(k => { if (Store.t[k]) { clearTimeout(Store.t[k]); Store.t[k] = null; Store.flush(k); } }); await new Promise(r => setTimeout(r, 150)); }
     try { await CLOUD.sb.auth.signOut(); } catch (e) {}
+    try { Object.keys(localStorage).filter(k => /^sb-.*-auth-token$/.test(k)).forEach(k => localStorage.removeItem(k)); } catch (e) {}
+    lsSet(LAST_USER, null); lsSet(PEND_DEL, null); CLOUD.offline = false;
     CLOUD.user = null; Store.db = null; VIEWER.name = "";
     try { Object.keys(localStorage).filter(k => k.startsWith(LS)).forEach(k => localStorage.removeItem(k)); } catch (e) {}
     try { const all = await PhotoDB.all(); await Promise.all(Object.keys(all).map(k => PhotoDB.del(k))); } catch (e) {}
@@ -180,6 +219,8 @@ async function logout(){
 }
 
 if (CLOUD.gateEarly) showGate();
+/* Entrou antes neste aparelho e a sessão não volta logo (sem internet)? Abre com os dados do aparelho. */
+if (CLOUD.sb && hasToken()) { if (!navigator.onLine) goOffline(); setTimeout(() => { if (!CLOUD.user) goOffline(); }, 3500); }
 Object.assign(ACT, {
   authOpen: el => { AUTH.msg = ""; AUTH.ok = ""; authModal(el.dataset.arg); },
   logout: () => logout()
