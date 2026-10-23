@@ -34,6 +34,12 @@
 .live-grid span{font-size:12px;color:var(--muted)}
 .live-map{flex:1;min-height:180px;border-radius:18px;background:rgba(0,0,0,.25);border:1px solid var(--glass-b);display:grid;place-items:center;overflow:hidden}
 .live-map svg{width:100%;height:100%}
+.live-map.lf{display:block;background:#0b1a22}
+.leaflet-container{background:#0b1a22;font:12px Figtree,sans-serif}
+.live-map.lf svg,.leaflet-pane svg{width:auto;height:auto;max-width:none}
+.leaflet-control-attribution{background:rgba(6,19,27,.75)!important;color:#8aa!important;font-size:10px}
+.leaflet-control-attribution a{color:#9cc!important}
+.leaflet-control-zoom a{background:#11232c!important;color:#dfe!important;border-color:#1d3540!important}
 .live-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
 .live-btns .btn{min-height:58px;font-size:17px}
 .live-note{font-size:12.5px;color:var(--faint);text-align:center;margin-top:10px}
@@ -203,7 +209,7 @@ function runStart(resume){
 function runPos(pos){
   if (!RUN) return;
   const c = pos.coords, pt = [+c.latitude.toFixed(6), +c.longitude.toFixed(6), Date.now()];
-  RUN.acc = Math.round(c.accuracy); RUN.gpsErr = "";
+  RUN.acc = Math.round(c.accuracy); RUN.gpsErr = ""; RUN.here = [pt[0], pt[1]]; if (LMAP && !LMAP.me) liveMapPaint();
   if (RUN.status !== "running" || c.accuracy > 40) { runPaint(); return; }
   if (RUN.last) {
     const d = hav(RUN.last, pt), dt = (pt[2] - RUN.last[2]) / 1000;
@@ -228,6 +234,42 @@ function runStats(){
   const rc = RUN.recent, cur = rc.length > 1 ? (rc[rc.length - 1][1] - rc[0][1]) / 1000 : 0, curS = rc.length > 1 ? (rc[rc.length - 1][0] - rc[0][0]) / 1000 : 0;
   return {ms, km, kcal:actKcal(RUN.type, ms / 60000, km, kg), avg:paceTxt(ms / 1000, km), cur:cur > 0.02 ? paceTxt(curS, cur) : "–", kmh:ms > 0 ? km / (ms / 3600000) : 0};
 }
+/* Mapa de verdade (Leaflet + CARTO) no site; sem ele, cai no desenho simples. */
+const HAS_MAP = () => typeof L !== "undefined" && !!window.DESFR_PWA;
+function mkMap(el, interactive){
+  const m = L.map(el, {zoomControl:interactive, attributionControl:true, dragging:interactive, scrollWheelZoom:false, touchZoom:interactive, doubleClickZoom:interactive, boxZoom:false, keyboard:false});
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {maxZoom:19, subdomains:"abcd", attribution:'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>'}).addTo(m);
+  m.attributionControl.setPrefix(false);
+  return m;
+}
+const ROUTE_STYLE = {color:"#3DD6F5", weight:5, opacity:.95, lineCap:"round", lineJoin:"round"};
+let LMAP = null;
+function liveMapInit(){
+  const el = $("#rl-map"); if (!el || !HAS_MAP()) return;
+  el.innerHTML = ""; el.classList.add("lf");
+  const m = mkMap(el, true), c0 = RUN.here || RUN.last || [-15.79, -47.88];
+  m.setView([c0[0], c0[1]], RUN.here || RUN.last ? 17 : 4);
+  LMAP = {m, line:L.polyline(RUN.pts.map(p => [p[0], p[1]]), ROUTE_STYLE).addTo(m), acc:null, me:null, start:null, follow:true};
+  m.on("dragstart", () => { LMAP.follow = false; });
+  setTimeout(() => m.invalidateSize(), 60);
+}
+function liveMapPaint(){
+  if (!LMAP || !RUN) return;
+  const h = RUN.here; if (!h) return;
+  const ll = [h[0], h[1]];
+  if (!LMAP.me) { LMAP.acc = L.circle(ll, {radius:RUN.acc || 20, color:"#3DD6F5", weight:1, fillOpacity:.12}).addTo(LMAP.m); LMAP.me = L.circleMarker(ll, {radius:8, color:"#fff", weight:3, fillColor:"#3DD6F5", fillOpacity:1}).addTo(LMAP.m); LMAP.m.setView(ll, 17); }
+  else { LMAP.me.setLatLng(ll); LMAP.acc.setLatLng(ll).setRadius(RUN.acc || 20); if (LMAP.follow) LMAP.m.panTo(ll, {animate:true}); }
+  if (RUN.pts.length && !LMAP.start) LMAP.start = L.circleMarker([RUN.pts[0][0], RUN.pts[0][1]], {radius:6, color:"#06131B", weight:2, fillColor:"#3BE38E", fillOpacity:1}).addTo(LMAP.m);
+  if (LMAP.line.getLatLngs().length !== RUN.pts.length) LMAP.line.setLatLngs(RUN.pts.map(p => [p[0], p[1]]));
+}
+function staticMap(el, track){
+  if (!el || !HAS_MAP() || !track || track.length < 2) return;
+  el.innerHTML = ""; el.classList.add("lf");
+  const m = mkMap(el, true), ll = track.map(p => [p[0], p[1]]), line = L.polyline(ll, ROUTE_STYLE).addTo(m);
+  L.circleMarker(ll[0], {radius:6, color:"#06131B", weight:2, fillColor:"#3BE38E", fillOpacity:1}).addTo(m);
+  L.circleMarker(ll[ll.length - 1], {radius:6, color:"#06131B", weight:2, fillColor:"#fff", fillOpacity:1}).addTo(m);
+  setTimeout(() => { m.invalidateSize(); m.fitBounds(line.getBounds(), {padding:[18, 18]}); }, 80);
+}
 function runRender(){
   const t = AT(RUN.type), bike = RUN.type === "bike";
   $("#runRoot").innerHTML = `<div class="live" role="dialog" aria-label="${t.n} ao vivo">
@@ -239,11 +281,11 @@ function runRender(){
       <div><b class="num" id="rl-pace">–</b><span>${bike ? "km/h" : "ritmo /km"}</span></div>
       <div><b class="num" id="rl-kcal">0</b><span>kcal</span></div>
     </div>
-    <div class="live-map" id="rl-map"><span class="sub">${ic("pin", 'style="width:18px;height:18px;vertical-align:-4px"')} O trajeto aparece aqui</span></div>
+    <div class="live-map" id="rl-map"><span class="sub" style="text-align:center;padding:12px">${ic("pin", 'style="width:18px;height:18px;vertical-align:-4px"')} O trajeto aparece aqui quando você começar a se mover</span></div>
     <div class="live-btns" id="rl-btns"></div>
     <div class="live-note">Deixe a tela ligada e o app aberto. Seu progresso fica salvo mesmo se a página recarregar.</div>
   </div>`;
-  runButtons(); runPaint();
+  runButtons(); LMAP = null; liveMapInit(); runPaint();
 }
 function runButtons(){
   const b = $("#rl-btns"); if (!b) return;
@@ -261,10 +303,10 @@ function runPaint(){
   $("#rl-kcal").textContent = fmt(s.kcal);
   const g = $("#rl-gps"); g.className = "gps " + (RUN.gpsErr && !RUN.acc ? "bad" : RUN.acc != null && RUN.acc <= 25 ? "ok" : "");
   g.querySelector("span").textContent = RUN.acc != null ? `GPS ±${RUN.acc} m` : "Procurando GPS…";
-  $("#rl-status").textContent = RUN.gpsErr || (RUN.status === "paused" ? "Pausado" : `Ritmo médio ${s.avg} /km`);
-  if (RUN.pts.length !== RUN_PTS_DRAWN && RUN.pts.length > 1) { RUN_PTS_DRAWN = RUN.pts.length; $("#rl-map").innerHTML = routeSVG(RUN.pts, "", 4); }
+  $("#rl-status").textContent = RUN.gpsErr || (RUN.acc == null ? "Procurando seu sinal de GPS… vá para um lugar aberto" : RUN.acc > 40 ? `Sinal fraco (±${RUN.acc} m). Em lugar aberto ele melhora` : RUN.status === "paused" ? (RUN.moving ? "Pausado" : "GPS pronto. Toque em Começar") : RUN.dist < 1 ? "Gravando… comece a se mover" : `Ritmo médio ${s.avg} /km`);
+  if (LMAP) liveMapPaint(); else if (RUN.pts.length !== RUN_PTS_DRAWN && RUN.pts.length > 1) { RUN_PTS_DRAWN = RUN.pts.length; $("#rl-map").innerHTML = routeSVG(RUN.pts, "", 4); }
 }
-function runStop(){ clearInterval(RUN_T); RUN_T = null; try { if (RUN && RUN.watch != null) navigator.geolocation.clearWatch(RUN.watch); } catch (e) {} wakeOff(); }
+function runStop(){ try { if (LMAP) LMAP.m.remove(); } catch (e) {} LMAP = null; clearInterval(RUN_T); RUN_T = null; try { if (RUN && RUN.watch != null) navigator.geolocation.clearWatch(RUN.watch); } catch (e) {} wakeOff(); }
 function simplify(pts, max = 300){ if (pts.length <= max) return pts.map(p => [p[0], p[1]]); const step = pts.length / max, out = []; for (let i = 0; i < max; i++) out.push(pts[Math.floor(i * step)]); out.push(pts[pts.length - 1]); return out.map(p => [p[0], p[1]]); }
 function runFinish(){
   if (RUN.status === "running") { RUN.moving = runElapsed(); RUN.status = "paused"; }
@@ -291,12 +333,13 @@ function actView(id){
   const sp = a.splits || [], mx = Math.max(1, ...sp);
   openModal(`${sheetHead(esc(a.name || AT(a.type).n), dLabel(a.date) + (a.time ? " · " + a.time : ""))}
     <div class="col" style="gap:12px">
-      ${a.track && a.track.length > 1 ? `<div style="height:200px;border-radius:14px;background:rgba(0,0,0,.25)">${routeSVG(a.track, "", 3)}</div>` : ""}
+      ${a.track && a.track.length > 1 ? `<div id="av-map" class="live-map" style="height:${HAS_MAP() ? 260 : 200}px;flex:none;border-radius:14px">${routeSVG(a.track, "", 3)}</div>` : ""}
       <div class="stats">${a.km ? `<div class="stat"><span class="lbl">Distância</span><div class="v num">${fmt(a.km, 2)}<small>km</small></div></div>` : ""}<div class="stat"><span class="lbl">Tempo</span><div class="v num">${durTxt(a.min)}</div></div>${a.km ? `<div class="stat"><span class="lbl">${a.type === "bike" ? "Média" : "Ritmo médio"}</span><div class="v num">${a.type === "bike" ? fmt(a.km / (a.min / 60), 1) + "<small>km/h</small>" : paceTxt(a.min * 60, a.km) + "<small>/km</small>"}</div></div>` : ""}<div class="stat"><span class="lbl">Calorias</span><div class="v num">${fmt(a.kcal)}</div></div></div>
       <div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn primary" style="flex:1" data-act="actShare" data-arg="${a.id}">${ic("link")}Compartilhar imagem</button>${typeof CLOUD !== "undefined" && CLOUD.sb ? `<button class="btn" style="flex:1" data-act="actPost" data-arg="${a.id}">${ic("users")}Postar na comunidade</button>` : ""}</div>
       ${sp.length ? `<p class="sub" style="margin:0">Na imagem escondemos os primeiros e os últimos 200 m do trajeto, para não mostrar onde você mora.</p>` : ""}
       ${sp.length ? `<div><b>Parciais por km</b><div class="splits" style="margin-top:8px">${sp.map((s, i) => `<span class="num">km ${i + 1}</span><span class="bar" style="width:${s / mx * 100}%"></span><span class="num">${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}</span>`).join("")}</div></div>` : ""}
     </div>`);
+  staticMap($("#av-map"), a.track);
 }
 
 
