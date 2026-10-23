@@ -191,7 +191,7 @@ function bodyMap(sel){
   return `<div class="bodymap"><figure><svg viewBox="0 0 200 380" role="group" aria-label="Corpo de frente">${front}</svg><figcaption>Frente</figcaption></figure><figure><svg viewBox="0 0 200 380" role="group" aria-label="Corpo de costas">${back}</svg><figcaption>Costas</figcaption></figure></div>`;
 }
 function exCard(e, act = "exInfo"){
-  return `<button class="ex" data-act="${act}" data-arg="${e.id}"><span class="exi">${ic("eq_" + e.eq)}</span><span style="min-width:0"><span class="exn" style="display:block">${esc(e.n)}</span><span class="exm" style="display:block">${esc(e.prim)}</span><span class="exr"><span class="pill">${EQN[e.eq]}</span><span class="pill num">${e.rx[0]} × ${e.rx[1]}</span><span class="pill">${e.lvl}</span></span></span></button>`;
+  return `<button class="ex" data-act="${act}" data-arg="${e.id}"><span class="exi">${ic("eq_" + e.eq)}</span><span style="min-width:0"><span class="exn" style="display:block">${esc(e.n)}</span><span class="exm" style="display:block">${esc(e.prim)}</span><span class="exr"><span class="pill">${EQN[e.eq]}</span><span class="pill num">${e.rx[0]} × ${e.rx[1]}</span><span class="pill">${e.lvl}</span>${e.s && typeof SUBN === "function" ? `<span class="pill ac">${SUBN(e.g, e.s)}</span>` : ""}</span></span></button>`;
 }
 function weekSets(){
   const lim = addDays(todayISO(), -6), cnt = Object.fromEntries(GROUPS.map(g => [g.id, 0]));
@@ -200,14 +200,15 @@ function weekSets(){
 }
 function vTreino(){
   const d = draft();
-  const seg = `<div class="seg">${[["treinar","Treinar"],["corrida","Corrida"],["biblioteca","Exercícios"],["historico","Histórico"]].map(([k, n]) => `<button data-act="wtab" data-arg="${k}" aria-pressed="${UI.wtab === k}">${n}</button>`).join("")}</div>`;
+  const seg = `<div class="seg scroll">${[["treinar","Treinar"],["fichas","Fichas"],["biblioteca","Exercícios"],["corrida","Corrida"],["historico","Histórico"]].map(([k, n]) => `<button data-act="wtab" data-arg="${k}" aria-pressed="${UI.wtab === k}">${n}</button>`).join("")}</div>`;
   let body = "";
   if (UI.wtab === "corrida" && typeof runTab === "function") return `<div class="ph"><div><div class="eyebrow">Cardio · corrida · atividades extras</div><h1>Corrida e atividades</h1><p class="lede">Corra com GPS ou registre o que você fez a mais no dia. O gasto extra entra na sua meta de calorias e água.</p></div>${seg}</div>${runTab()}`;
+  if (UI.wtab === "fichas" && typeof fichasTab === "function") return `<div class="ph"><div><div class="eyebrow">Musculação · sua divisão</div><h1>Fichas de treino</h1><p class="lede">Monte sua ficha A, B, C… com os exercícios, séries e repetições, ou comece por uma sugestão.</p></div>${seg}</div>${fichasTab()}`;
   if (UI.wtab === "biblioteca") {
-    const list = EXERCISES.filter(e => e.g === UI.libGrp);
+    const list = EXERCISES.filter(e => e.g === UI.libGrp && (!UI.libSub || e.s === UI.libSub));
     body = `<div class="grid g-calc"><section class="panel"><div class="panel-h"><h2>${ic("target")}Escolha o músculo</h2></div>${bodyMap(UI.libGrp)}
       <div class="groups" style="margin-top:14px">${GROUPS.map(g => `<button class="grp" data-act="grp" data-arg="${g.id}" aria-pressed="${UI.libGrp === g.id}">${g.n}<span>${EXERCISES.filter(e => e.g === g.id).length}</span></button>`).join("")}</div></section>
-      <section class="panel"><div class="panel-h"><h2>${ic("book")}${GN[UI.libGrp]}</h2><span class="sub">Toque para ver execução, erros e dicas</span></div><div class="exlist" style="grid-template-columns:minmax(0,1fr)">${list.map(e => exCard(e)).join("")}</div></section></div>`;
+      <section class="panel"><div class="panel-h"><h2>${ic("book")}${GN[UI.libGrp]}</h2><span class="sub">Toque para ver execução, vídeo e dicas</span></div>${typeof subChips === "function" ? subChips(UI.libGrp, UI.libSub, "libSub") : ""}<div class="exlist" style="grid-template-columns:minmax(0,1fr)">${list.map(e => exCard(e)).join("")}</div></section></div>`;
   } else if (UI.wtab === "historico") {
     const ss = allSessions(), ws = weekSets(), lim = addDays(todayISO(), -6), wk = ss.filter(s => s.date >= lim);
     body = `<div class="grid g2">
@@ -219,7 +220,7 @@ function vTreino(){
   } else if (!d) {
     body = `<section class="panel"><div class="panel-h"><h2>${ic("play")}Começar um treino</h2><span class="sub">Fichas prontas ou monte do zero</span></div>
       <div class="row" style="margin-bottom:12px"><button class="btn pill-cta" data-act="openAgenda">${ic("calendar")}Agenda de treinos</button><span class="sub">${(() => { const t = todaysTemplate(P()); return t ? "Hoje: " + esc(t.n) : "Defina a ficha de cada dia da semana"; })()}</span></div>
-      <div class="tpl">${allTemplates().map(t => `<button data-act="startTpl" data-arg="${t.id}"><span class="row" style="gap:6px"><span class="tn">${esc(t.n)}</span>${t.custom ? '<span class="pill ac">sua ficha</span>' : ""}</span><span class="td">${esc(t.d)}</span><span class="td num">${t.ex.length} exercícios</span>${t.custom ? `<span class="td" data-act="delTpl" data-arg="${t.id}" role="button" tabindex="0" style="color:var(--bad);font-weight:600">Excluir ficha</span>` : ""}</button>`).join("")}<button data-act="startTpl" data-arg="" style="border-style:dashed"><span class="tn">${"Treino livre"}</span><span class="td">Escolha os exercícios na hora</span></button></div></section>
+      <div class="tpl">${allTemplates().map(t => `<button data-act="startTpl" data-arg="${t.id}"><span class="row" style="gap:6px"><span class="tn">${esc(t.n)}</span>${t.custom || t.ficha ? '<span class="pill ac">sua ficha</span>' : ""}</span><span class="td">${esc(t.d)}</span><span class="td num">${t.ex.length} exercícios</span>${t.custom ? `<span class="td" data-act="delTpl" data-arg="${t.id}" role="button" tabindex="0" style="color:var(--bad);font-weight:600">Excluir ficha</span>` : ""}</button>`).join("")}<button data-act="startTpl" data-arg="" style="border-style:dashed"><span class="tn">${"Treino livre"}</span><span class="td">Escolha os exercícios na hora</span></button></div></section>
       <section class="panel"><div class="panel-h"><h2>${ic("info")}Como montar sua semana</h2></div><div class="grid g3">
         <div><b>Iniciante (até 1 ano)</b><p class="sub">Full body 3x por semana. Foco em técnica e progressão de carga nos multiarticulares.</p></div>
         <div><b>Intermediário</b><p class="sub">Upper/Lower 4x ou Push/Pull/Legs. Cada músculo treinado 2x por semana.</p></div>
@@ -228,7 +229,7 @@ function vTreino(){
     const el = Math.max(0, Math.round((Date.now() - d.start) / 60000));
     body = `<section class="panel"><div class="row"><input class="input" style="flex:1;min-width:180px;font-weight:700" value="${esc(d.name)}" data-bind="dname" aria-label="Nome do treino"><span class="pill num">${ic("clock", 'style="width:13px;height:13px"')} ${el} min</span><button class="btn ghost danger" data-act="discardWk">Descartar</button><button class="btn ghost" data-act="saveTpl">${ic("star")}Salvar como ficha</button><button class="btn primary" data-act="finishWk">${ic("check")}Finalizar treino</button></div>
       <div class="row" style="margin-top:12px"><span class="lbl">Descanso</span>${[60,90,120,180].map(s => `<button class="chip" data-act="rest" data-arg="${s}" aria-pressed="${UI.rest === s}">${s < 120 ? s + " s" : s / 60 + " min"}</button>`).join("")}<span class="sub">O cronômetro inicia ao concluir uma série</span></div></section>
-      ${d.ex.map((we, ei) => { const e = EX[we.id] || {n:we.id, eq:"halter", g:""}; const lf = lastFor(we.id); return `<section class="wex"><div class="wex-h"><span class="exi" style="width:38px;height:38px;border-radius:9px;background:var(--surface2);display:flex;align-items:center;justify-content:center;flex:none">${ic("eq_" + e.eq, 'style="width:24px;height:24px"')}</span><div style="min-width:0;flex:1"><div class="n">${esc(e.n)}</div><div class="p">${GN[e.g] || ""}${lf ? ` · Última vez (${dShort(lf.date)}): ${lf.sets.map(s => (s.kg ? fmt(s.kg, 1) + "×" : "") + s.r).join(", ")}` : e.rx ? ` · Sugestão: ${e.rx[0]} × ${e.rx[1]}` : ""}</div></div><button class="iconbtn" data-act="exInfo" data-arg="${we.id}" aria-label="Como executar">${ic("info")}</button><button class="iconbtn" data-act="swapEx" data-arg="${ei}" aria-label="Trocar por equivalente" title="Trocar exercício">${ic("swap")}</button><button class="iconbtn" data-act="delWex" data-arg="${ei}" aria-label="Remover exercício">${ic("trash")}</button></div>
+      ${d.ex.map((we, ei) => { const e = EX[we.id] || {n:we.id, eq:"halter", g:""}; const lf = lastFor(we.id); return `<section class="wex"><div class="wex-h"><span class="exi" style="width:38px;height:38px;border-radius:9px;background:var(--surface2);display:flex;align-items:center;justify-content:center;flex:none">${ic("eq_" + e.eq, 'style="width:24px;height:24px"')}</span><div style="min-width:0;flex:1"><div class="n">${esc(e.n)}</div><div class="p">${GN[e.g] || ""}${we.plan ? ` · Meta: ${we.sets.length} × ${esc(we.plan)}` : ""}${lf ? ` · Última vez (${dShort(lf.date)}): ${lf.sets.map(s => (s.kg ? fmt(s.kg, 1) + "×" : "") + s.r).join(", ")}` : e.rx && !we.plan ? ` · Sugestão: ${e.rx[0]} × ${e.rx[1]}` : ""}</div></div><button class="iconbtn" data-act="exInfo" data-arg="${we.id}" aria-label="Como executar">${ic("info")}</button><button class="iconbtn" data-act="swapEx" data-arg="${ei}" aria-label="Trocar por equivalente" title="Trocar exercício">${ic("swap")}</button><button class="iconbtn" data-act="delWex" data-arg="${ei}" aria-label="Remover exercício">${ic("trash")}</button></div>
         <div class="set-h"><span>#</span><span>Carga kg</span><span>Reps</span><span title="Esforço percebido (6 = fácil, 10 = falha)">RPE</span><span>Feito</span><span></span></div>
         <div class="sets">${we.sets.map((s, si) => { const ph = lf && (lf.sets[si] || lf.sets[lf.sets.length - 1]); return `<div class="set ${s.done ? "done" : ""}"><span class="sn">${si + 1}</span><input class="input num" type="number" inputmode="decimal" step="0.5" min="0" value="${s.kg}" placeholder="${ph && ph.kg ? ph.kg : "kg"}" data-bind="setkg" data-e="${ei}" data-s="${si}" aria-label="Carga série ${si + 1}"><input class="input num" type="number" inputmode="numeric" min="0" value="${s.r}" placeholder="${ph ? ph.r : (e.rx ? e.rx[1].split("–")[0] : "reps")}" data-bind="setr" data-e="${ei}" data-s="${si}" aria-label="Repetições série ${si + 1}"><select class="input num" data-bind="rpe" data-e="${ei}" data-s="${si}" aria-label="RPE série ${si + 1}"><option value="">–</option>${[6,7,7.5,8,8.5,9,9.5,10].map(v => `<option value="${v}" ${+s.rpe === v ? "selected" : ""}>${String(v).replace(".", ",")}</option>`).join("")}</select><button class="ck" data-act="setDone" data-e="${ei}" data-s="${si}" aria-label="Concluir série ${si + 1}" aria-pressed="${!!s.done}">${ic("check")}</button><button class="iconbtn" data-act="delSet" data-e="${ei}" data-s="${si}" aria-label="Remover série">${ic("x")}</button></div>`; }).join("")}</div>
         <div class="meal-f"><button class="btn sm ghost" data-act="addSet" data-e="${ei}">${ic("plus")}Série</button></div></section>`; }).join("")}
@@ -244,19 +245,20 @@ function exDetail(id){
   const e = EX[id]; if (!e) return;
   const hist = allSessions().filter(s => s.ex.some(x => x.id === id)).reverse().map(s => { const x = s.ex.find(y => y.id === id); const b = Math.max(0, ...x.sets.map(st => e1rm(+st.kg || 0, +st.r || 0))); return {x:s.date, y:Math.round(b * 10) / 10}; }).filter(p => p.y > 0);
   const best = hist.length ? Math.max(...hist.map(h => h.y)) : 0;
-  openModal(`${sheetHead(esc(e.n), GN[e.g])}
+  openModal(`${sheetHead(esc(e.n), GN[e.g] + (e.s && typeof SUBN === "function" ? " · " + SUBN(e.g, e.s) : ""))}
     <div class="row"><span class="pill">${ic("eq_" + e.eq, 'style="width:14px;height:14px"')}${EQN[e.eq]}</span><span class="pill ac">${e.lvl}</span></div>
+    <div class="row" style="gap:8px;flex-wrap:wrap"><a class="btn primary" href="https://www.youtube.com/results?search_query=${encodeURIComponent(e.n + " execução correta")}" target="_blank" rel="noopener">${ic("video")}Ver vídeo no YouTube</a>${typeof addToFichaModal === "function" ? `<button class="btn" data-act="fToFicha" data-arg="${e.id}">${ic("list")}Adicionar à minha ficha</button>` : ""}</div>
     <p class="small"><b>Principal:</b> ${esc(e.prim)}<br><span class="muted"><b>Auxiliares:</b> ${esc(e.sec)}</span></p>
     <div class="rx"><div><div class="l">Séries</div><div class="v num">${e.rx[0]}</div></div><div><div class="l">Repetições</div><div class="v num">${e.rx[1]}</div></div><div><div class="l">Descanso</div><div class="v num">${e.rx[2]}</div></div></div>
     <div class="grid g2 detail"><div><h4>${ic("list")}Execução passo a passo</h4><ol class="steps">${e.how.map(x => `<li><span>${esc(x)}</span></li>`).join("")}</ol></div>
       <div style="display:flex;flex-direction:column;gap:16px"><div><h4>${ic("alert")}Erros comuns</h4><ul class="blist err">${e.err.map(x => `<li>${ic("x")}<span>${esc(x)}</span></li>`).join("")}</ul></div><div><h4>${ic("whistle")}Dicas do coach</h4><ul class="blist cue">${e.cue.map(x => `<li>${ic("check")}<span>${esc(x)}</span></li>`).join("")}</ul></div></div></div>
     ${hist.length ? `<div><h4 class="lbl" style="margin-bottom:6px">Sua progressão · 1RM estimado (Epley)</h4><p class="sub">Melhor marca: <b class="num">${fmt(best, 1)} kg</b></p>${lineChart(hist, {h:180, unit:"kg", label:"1RM estimado"})}</div>` : ""}
-    <div class="row"><a class="btn" href="https://www.youtube.com/results?search_query=${encodeURIComponent(e.n + " execução correta")}" target="_blank" rel="noopener">${ic("video")}Ver vídeos de execução</a><span class="spacer"></span><button class="btn primary" data-act="addEx" data-arg="${e.id}">${ic("plus")}${draft() ? "Adicionar ao treino atual" : "Começar treino com este exercício"}</button></div>`, "wide");
+    <div class="row"><span class="spacer"></span><button class="btn primary" data-act="addEx" data-arg="${e.id}">${ic("plus")}${draft() ? "Adicionar ao treino atual" : "Começar treino com este exercício"}</button></div>`, "wide");
 }
 function pickExModal(){
   openModal(`${sheetHead("Adicionar exercício", "Treino atual")}
     <div class="chips">${GROUPS.map(g => `<button class="chip" data-act="pickGrp" data-arg="${g.id}" aria-pressed="${UI.grp === g.id}">${g.n}</button>`).join("")}</div>
-    <div class="exlist" style="grid-template-columns:minmax(0,1fr);max-height:56vh;overflow:auto">${EXERCISES.filter(e => e.g === UI.grp).map(e => exCard(e, "addEx")).join("")}</div>`);
+    ${typeof subChips === "function" ? subChips(UI.grp, UI.pickSub, "pickSub") : ""}<div class="exlist" style="grid-template-columns:minmax(0,1fr);max-height:52vh;overflow:auto">${EXERCISES.filter(e => e.g === UI.grp && (!UI.pickSub || e.s === UI.pickSub)).map(e => exCard(e, "addEx")).join("")}</div>`);
 }
 function newDraft(name){ return {name: name || "Treino de " + DOW[new Date().getDay()], start: Date.now(), date: todayISO(), ex: []}; }
 function exEntry(id){ const lf = lastFor(id), n = lf ? Math.min(lf.sets.length, 6) : (EX[id] ? parseInt(EX[id].rx[0]) || 3 : 3); return {id, sets: Array.from({length:n}, () => ({kg:"", r:"", done:false}))}; }
@@ -380,8 +382,8 @@ const ACT = {
   },
   delMeasure: el => confirmBox("Apagar registro?", "Essa medição será removida do histórico.", "Apagar", () => { Store.put("measures", {list: measures().filter(m => m.id !== el.dataset.arg)}); render(); }),
   wtab: el => { UI.wtab = el.dataset.arg; render(); },
-  grp: el => { UI.libGrp = el.dataset.arg; render(); },
-  pickGrp: el => { UI.grp = el.dataset.arg; pickExModal(); },
+  grp: el => { UI.libGrp = el.dataset.arg; UI.libSub = ""; render(); },
+  pickGrp: el => { UI.grp = el.dataset.arg; UI.pickSub = ""; pickExModal(); },
   exInfo: el => exDetail(el.dataset.arg),
   pickEx: () => pickExModal(),
   addEx: el => { const d = draft() || newDraft(); d.ex.push(exEntry(el.dataset.arg)); saveDraft(d); closeModal(); UI.tab = "treino"; UI.wtab = "treinar"; render(); toast(`${EX[el.dataset.arg].n} adicionado`); },

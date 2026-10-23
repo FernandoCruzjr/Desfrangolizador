@@ -109,7 +109,7 @@ function suppChecklist(d){
 }
 
 /* ======================= AGENDA & FICHAS ======================= */
-const allTemplates = () => ((Store.get("tpls") || {}).list || []).concat(TEMPLATES);
+const allTemplates = () => (typeof fichaTemplates === "function" ? fichaTemplates() : []).concat((Store.get("tpls") || {}).list || [], TEMPLATES);
 function agendaModal(){
   const p = P(), ag = p.agenda || {}, tp = allTemplates();
   const order = [1,2,3,4,5,6,0], nm = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
