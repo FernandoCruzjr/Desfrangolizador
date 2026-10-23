@@ -36,6 +36,7 @@
 .live-map svg{width:100%;height:100%}
 .live-map.lf{display:block;background:#0b1a22}
 .leaflet-container{background:#0b1a22;font:12px Figtree,sans-serif}
+.leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.6)}
 .live-map.lf svg,.leaflet-pane svg{width:auto;height:auto;max-width:none}
 .leaflet-control-attribution{background:rgba(6,19,27,.75)!important;color:#8aa!important;font-size:10px}
 .leaflet-control-attribution a{color:#9cc!important}
@@ -234,11 +235,11 @@ function runStats(){
   const rc = RUN.recent, cur = rc.length > 1 ? (rc[rc.length - 1][1] - rc[0][1]) / 1000 : 0, curS = rc.length > 1 ? (rc[rc.length - 1][0] - rc[0][0]) / 1000 : 0;
   return {ms, km, kcal:actKcal(RUN.type, ms / 60000, km, kg), avg:paceTxt(ms / 1000, km), cur:cur > 0.02 ? paceTxt(curS, cur) : "–", kmh:ms > 0 ? km / (ms / 3600000) : 0};
 }
-/* Mapa de verdade (Leaflet + CARTO) no site; sem ele, cai no desenho simples. */
+/* Mapa de verdade (Leaflet + OpenStreetMap, escurecido por filtro) no site; sem ele, cai no desenho simples. */
 const HAS_MAP = () => typeof L !== "undefined" && !!window.DESFR_PWA;
 function mkMap(el, interactive){
   const m = L.map(el, {zoomControl:interactive, attributionControl:true, dragging:interactive, scrollWheelZoom:false, touchZoom:interactive, doubleClickZoom:interactive, boxZoom:false, keyboard:false});
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {maxZoom:19, subdomains:"abcd", attribution:'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> © <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>'}).addTo(m);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom:19, attribution:'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'}).addTo(m);
   m.attributionControl.setPrefix(false);
   return m;
 }
