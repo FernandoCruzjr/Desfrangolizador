@@ -71,6 +71,7 @@ async function socLoadMe(){
     SOC.err = "";
   } catch (e) { SOC.err = "Sem conexão com a Comunidade agora."; SOC.me = undefined; }
   SOC.loading = false;
+  if (SOC.me && SOC.openCompose && SOC.compose) { SOC.openCompose = false; setTimeout(composer, 0); }
   if (SOC.me) { socLoadFeed(true); try { const sv = JSON.parse(sessionStorage.getItem(CMP_LS) || "null"); if (sv && !SOC.compose && (sv.body || sv.img)) { SOC.compose = {body:sv.body, att:sv.att, imgData:sv.img, imgUrl:sv.img}; UI.tab = "social"; render(); composer(); toast("Seu post foi recuperado"); } } catch (e) {} }
   else if (UI.tab === "social") render();
 }
@@ -125,6 +126,12 @@ function postCard(p){
   if (p.kind === "run" && d.type) {
     const t = typeof AT === "function" ? AT(d.type) : {n:"Atividade", ic:"run"};
     extra = `<div class="post-act"><div class="map">${d.track && d.track.length > 1 && typeof routeSVG === "function" ? routeSVG(d.track, "", 4) : ic(t.ic)}</div><div><b>${esc(t.n)}</b><div class="nums" style="margin-top:6px">${d.km ? `<div><b>${fmt(d.km, 2)}</b><span>km</span></div>` : ""}<div><b>${durTxt(d.min)}</b><span>tempo</span></div>${d.km && d.type !== "bike" ? `<div><b>${paceTxt(d.min * 60, d.km)}</b><span>ritmo /km</span></div>` : ""}<div><b>${fmt(d.kcal)}</b><span>kcal</span></div></div></div></div>`;
+  } else if (p.kind === "meal" && d.name) {
+    const tot = Math.max(1, d.p * 4 + d.c * 4 + d.f * 9), bar = (v, k, cl) => `<span style="flex:${v * k / tot};background:var(${cl})"></span>`;
+    extra = `<div class="post-wk"><div class="row" style="gap:8px;flex-wrap:wrap;align-items:baseline"><b>${ic("plate", 'style="width:18px;height:18px;vertical-align:-3px;color:var(--accent)"')} ${esc(d.name)}</b><span class="num" style="font:800 20px var(--f-mono,monospace)">${fmt(d.kcal)}<small style="font-size:12px;color:var(--muted)"> kcal</small></span></div>
+      <div style="display:flex;height:8px;border-radius:6px;overflow:hidden;gap:2px;margin:8px 0">${bar(d.p, 4, "--c-p,#F07B3F")}${bar(d.c, 4, "--c-c,#3B8BF5")}${bar(d.f, 9, "--c-f,#2BB673")}</div>
+      <div class="row num" style="gap:14px;font-size:13.5px"><span><i class="dot c-p"></i> P ${fmt(d.p)} g</span><span><i class="dot c-c"></i> C ${fmt(d.c)} g</span><span><i class="dot c-f"></i> G ${fmt(d.f)} g</span></div>
+      <ul>${(d.items || []).slice(0, 12).map(it => `<li>${esc(it.n)} · ${fmt(it.g)} g</li>`).join("")}</ul></div>`;
   } else if (p.kind === "workout" && d.name) {
     extra = `<div class="post-wk"><b>${ic("dumbbell", 'style="width:18px;height:18px;vertical-align:-3px;color:var(--accent)"')} ${esc(d.name)}</b> <span class="sub">· ${fmt(d.sets)} séries · ${fmt(d.vol)} kg de volume${d.min ? " · " + durTxt(d.min) : ""}</span><ul>${(d.ex || []).slice(0, 8).map(e => `<li>${esc(e.n)}: ${e.s}× ${esc(e.best || "")}</li>`).join("")}</ul></div>`;
   }
@@ -196,14 +203,21 @@ document.addEventListener("submit", async ev => {
 });
 
 /* ---------- Post novo ---------- */
+function mealSummary(att){
+  const [, d, mi] = att.split(":"), day = typeof getDay === "function" ? getDay(d) : null, m = day && day.meals[+mi];
+  if (!m || !m.items.length) return null;
+  const t = m.items.reduce((a, it) => { const x = itemMac(it); a.k += x.k; a.p += x.p; a.c += x.c; a.f += x.f; return a; }, {k:0, p:0, c:0, f:0});
+  return {name:m.name, kcal:Math.round(t.k), p:Math.round(t.p), c:Math.round(t.c), f:Math.round(t.f), items:m.items.slice(0, 12).map(it => ({n:it.n, g:Math.round(it.g)}))};
+}
 function composer(){
   const c = SOC.compose; const acts = typeof allActs === "function" ? allActs().slice(0, 8) : [], ss = allSessions().slice(0, 5);
   const sel = c.att;
   openModal(`${sheetHead("Novo post", "Comunidade")}
     <div class="col" style="gap:12px">
-      <textarea id="pc-body" class="input" maxlength="600" rows="3" placeholder="Como foi o treino hoje?" style="min-height:90px">${esc(c.body || "")}</textarea>
+      <textarea id="pc-body" class="input" maxlength="600" rows="3" placeholder="${sel && sel.startsWith("m:") ? "Conta como ficou a refeição…" : "Como foi o treino hoje?"}" style="min-height:90px">${esc(c.body || "")}</textarea>
       ${c.prep ? `<div class="empty">Preparando a foto…</div>` : c.imgUrl ? `<div style="position:relative"><img src="${c.imgUrl}" alt="" class="post-img" style="max-height:280px"><button class="iconbtn" data-act="pcImgDel" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.6)" aria-label="Remover foto">${ic("x")}</button></div>` : `<label class="btn" style="cursor:pointer;justify-content:center">${ic("camera")}Adicionar foto<input type="file" accept="image/*" data-pcimg hidden></label>`}
-      ${acts.length || ss.length ? `<div><div class="lbl" style="margin-bottom:6px">Anexar (opcional)</div><div class="attach">
+      ${sel && sel.startsWith("m:") ? (() => { const ms = mealSummary(sel); return ms ? `<div class="post-wk"><b>${ic("plate", 'style="width:18px;height:18px;vertical-align:-3px;color:var(--accent)"')} ${esc(ms.name)}</b> <span class="sub">· ${fmt(ms.kcal)} kcal · P ${ms.p} g · C ${ms.c} g · G ${ms.f} g</span><p class="sub" style="margin:6px 0 0">Só esta refeição vai para o post. O resto da sua dieta continua privado.</p></div>` : ""; })() : ""}
+      ${(acts.length || ss.length) && !(sel && sel.startsWith("m:")) ? `<div><div class="lbl" style="margin-bottom:6px">Anexar (opcional)</div><div class="attach">
         <button class="chip" data-act="pcAtt" data-arg="" aria-pressed="${!sel}">Nada</button>
         ${acts.map(a => `<button class="chip" data-act="pcAtt" data-arg="a:${a.id}" aria-pressed="${sel === "a:" + a.id}">${ic(AT(a.type).ic)}${esc(AT(a.type).n)} ${a.km ? fmt(a.km, 1) + " km" : durTxt(a.min)} · ${dShort(a.date)}</button>`).join("")}
         ${ss.map(s => `<button class="chip" data-act="pcAtt" data-arg="w:${s.id}" aria-pressed="${sel === "w:" + s.id}">${ic("dumbbell")}${esc(s.name)} · ${dShort(s.date)}</button>`).join("")}
@@ -228,7 +242,8 @@ async function pcSend(){
   let kind = "text", data = null;
   if (c.att && c.att.startsWith("a:")) { const a = allActs().find(x => x.id === c.att.slice(2)); if (a) { kind = "run"; data = {type:a.type, km:a.km || 0, min:a.min, kcal:a.kcal}; if (a.track && a.track.length > 3) data.track = simplify(trimEnds(a.track), 150); } }
   if (c.att && c.att.startsWith("w:")) { const s = allSessions().find(x => x.id === c.att.slice(2)); if (s) { kind = "workout"; data = {name:s.name, sets:sessSets(s), vol:Math.round(sessVolume(s)), min:s.end && s.start ? Math.round((s.end - s.start) / 60000) : 0, ex:s.ex.map(e => { const b = e.sets.reduce((m, st) => (+st.kg || 0) * (+st.r || 0) > (+m.kg || 0) * (+m.r || 0) ? st : m, e.sets[0] || {}); return {n:(EX[e.id] || {}).n || e.id, s:e.sets.length, best:b && b.r ? `${b.r}${b.kg ? " × " + fmt(b.kg, 1) + " kg" : ""}` : ""}; })}; } }
-  if (!body && !c.file && !data) { toast("Escreva algo, adicione uma foto ou anexe uma atividade"); return; }
+  if (c.att && c.att.startsWith("m:")) { const ms = mealSummary(c.att); if (ms) { kind = "meal"; data = ms; } }
+  if (!body && !c.file && !c.imgData && !data) { toast("Escreva algo, adicione uma foto ou anexe uma atividade"); return; }
   c.busy = true; composer();
   try {
     let image_url = null;

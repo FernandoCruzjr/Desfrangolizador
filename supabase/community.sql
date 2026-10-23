@@ -51,7 +51,7 @@ grant execute on function app.blocked_between(uuid, uuid) to authenticated;
 create table public.posts (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references public.profiles(id) on delete cascade,
-  kind text not null default 'text' check (kind in ('text','photo','run','workout')),
+  kind text not null default 'text' check (kind in ('text','photo','run','workout','meal')),
   body text not null default '' check (char_length(body) <= 600),
   data jsonb check (data is null or pg_column_size(data) <= 20000),
   image_url text check (image_url is null or char_length(image_url) <= 500),
