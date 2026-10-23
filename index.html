@@ -3359,7 +3359,8 @@ async function socLoadMe(){
     SOC.err = "";
   } catch (e) { SOC.err = "Sem conexão com a Comunidade agora."; SOC.me = undefined; }
   SOC.loading = false;
-  if (SOC.me) socLoadFeed(true); else if (UI.tab === "social") render();
+  if (SOC.me) { socLoadFeed(true); try { const sv = JSON.parse(sessionStorage.getItem(CMP_LS) || "null"); if (sv && !SOC.compose && (sv.body || sv.img)) { SOC.compose = {body:sv.body, att:sv.att, imgData:sv.img, imgUrl:sv.img}; UI.tab = "social"; render(); composer(); toast("Seu post foi recuperado"); } } catch (e) {} }
+  else if (UI.tab === "social") render();
 }
 const POST_SEL = "id,user_id,kind,body,data,image_url,created_at,profiles!posts_user_id_fkey(id,username,display_name,avatar_url),likes(count),comments(count)";
 async function socLoadFeed(reset){
@@ -3447,12 +3448,15 @@ async function uploadImg(blob, name){
   return SB().storage.from("media").getPublicUrl(path).data.publicUrl + "?v=" + Date.now().toString(36);
 }
 async function toJpeg(src, max, q = .82, square = false){
-  const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = typeof src === "string" ? src : URL.createObjectURL(src); });
+  let img;
+  try { img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error("decode")); i.src = typeof src === "string" ? src : URL.createObjectURL(src); }); }
+  catch (e) { if (typeof src === "string" || !window.createImageBitmap) throw e; const bm = await createImageBitmap(src); img = {naturalWidth:bm.width, naturalHeight:bm.height, _bm:bm}; }
+  const draw = img._bm || img;
   let w = img.naturalWidth, h = img.naturalHeight, sx = 0, sy = 0, sw = w, sh = h;
   if (square) { const s = Math.min(w, h); sx = (w - s) / 2; sy = (h - s) / 2; sw = sh = s; w = h = Math.min(max, s); }
   else { const k = Math.min(1, max / Math.max(w, h)); w = Math.round(w * k); h = Math.round(h * k); }
-  const cv = document.createElement("canvas"); cv.width = w; cv.height = h; cv.getContext("2d").drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
-  return new Promise(r => cv.toBlob(r, "image/jpeg", q));
+  const cv = document.createElement("canvas"); cv.width = w; cv.height = h; cv.getContext("2d").drawImage(draw, sx, sy, sw, sh, 0, 0, w, h);
+  return new Promise((r, j) => cv.toBlob(b => b ? r(b) : j(new Error("toBlob")), "image/jpeg", q));
 }
 document.addEventListener("submit", async ev => {
   const f = ev.target; if (!f.matches("[data-socform]")) return; ev.preventDefault();
@@ -3486,7 +3490,7 @@ function composer(){
   openModal(`${sheetHead("Novo post", "Comunidade")}
     <div class="col" style="gap:12px">
       <textarea id="pc-body" class="input" maxlength="600" rows="3" placeholder="Como foi o treino hoje?" style="min-height:90px">${esc(c.body || "")}</textarea>
-      ${c.imgUrl ? `<div style="position:relative"><img src="${c.imgUrl}" alt="" class="post-img" style="max-height:280px"><button class="iconbtn" data-act="pcImgDel" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.6)" aria-label="Remover foto">${ic("x")}</button></div>` : `<label class="btn" style="cursor:pointer;justify-content:center">${ic("camera")}Adicionar foto<input type="file" accept="image/*" data-pcimg hidden></label>`}
+      ${c.prep ? `<div class="empty">Preparando a foto…</div>` : c.imgUrl ? `<div style="position:relative"><img src="${c.imgUrl}" alt="" class="post-img" style="max-height:280px"><button class="iconbtn" data-act="pcImgDel" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.6)" aria-label="Remover foto">${ic("x")}</button></div>` : `<label class="btn" style="cursor:pointer;justify-content:center">${ic("camera")}Adicionar foto<input type="file" accept="image/*" data-pcimg hidden></label>`}
       ${acts.length || ss.length ? `<div><div class="lbl" style="margin-bottom:6px">Anexar (opcional)</div><div class="attach">
         <button class="chip" data-act="pcAtt" data-arg="" aria-pressed="${!sel}">Nada</button>
         ${acts.map(a => `<button class="chip" data-act="pcAtt" data-arg="a:${a.id}" aria-pressed="${sel === "a:" + a.id}">${ic(AT(a.type).ic)}${esc(AT(a.type).n)} ${a.km ? fmt(a.km, 1) + " km" : durTxt(a.min)} · ${dShort(a.date)}</button>`).join("")}
@@ -3495,8 +3499,18 @@ function composer(){
       <button class="btn primary" data-act="pcSend" ${c.busy ? "disabled" : ""}>${ic("send")}${c.busy ? "Publicando…" : "Publicar"}</button>
     </div>`);
 }
-document.addEventListener("input", ev => { if (ev.target.id === "pc-body" && SOC.compose) SOC.compose.body = ev.target.value; });
-document.addEventListener("change", ev => { const el = ev.target; if (el.matches("[data-pcimg]") && el.files && el.files[0] && SOC.compose) { SOC.compose.file = el.files[0]; SOC.compose.imgUrl = URL.createObjectURL(el.files[0]); composer(); } });
+document.addEventListener("input", ev => { if (ev.target.id === "pc-body" && SOC.compose) { SOC.compose.body = ev.target.value; cmpSave(); } });
+const CMP_LS = "desfr-compose";
+function cmpSave(){ try { const c = SOC.compose; if (!c) { sessionStorage.removeItem(CMP_LS); return; } sessionStorage.setItem(CMP_LS, JSON.stringify({body:c.body || "", att:c.att || "", img:c.imgData || ""})); } catch (e) {} }
+const blobToData = b => new Promise((r, j) => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.onerror = j; fr.readAsDataURL(b); });
+document.addEventListener("change", async ev => {
+  const el = ev.target; if (!el.matches("[data-pcimg]") || !el.files || !el.files[0] || !SOC.compose) return;
+  const f = el.files[0], c = SOC.compose;
+  c.prep = true; composer();
+  try { const b = await toJpeg(f, 1280, .8); c.file = b; c.imgData = await blobToData(b); c.imgUrl = c.imgData; cmpSave(); }
+  catch (e) { toast(/heic|heif/i.test(f.type + f.name) ? "Essa foto está em HEIC. Escolha outra ou mude a câmera para JPEG." : "Não consegui abrir essa foto. Tente outra ou tire uma nova."); }
+  c.prep = false; composer();
+});
 async function pcSend(){
   const c = SOC.compose, body = (c.body || "").trim();
   let kind = "text", data = null;
@@ -3506,11 +3520,12 @@ async function pcSend(){
   c.busy = true; composer();
   try {
     let image_url = null;
-    if (c.file) { image_url = await uploadImg(await toJpeg(c.file, 1280, .8), "p-" + uid() + ".jpg"); if (kind === "text") kind = "photo"; }
+    if (!c.file && c.imgData) c.file = await (await fetch(c.imgData)).blob();
+    if (c.file) { try { image_url = await uploadImg(c.file, "p-" + uid() + ".jpg"); } catch (e) { e.stage = "foto"; throw e; } if (kind === "text") kind = "photo"; }
     const r = await SB().from("posts").insert({body, kind, data, image_url}).select(POST_SEL).single();
     if (r.error) throw r.error;
-    SOC.posts.unshift(r.data); SOC.compose = null; closeModal(); UI.tab = "social"; render(); toast("Post publicado!");
-  } catch (e) { c.busy = false; composer(); socErr(e); }
+    SOC.posts.unshift(r.data); SOC.compose = null; cmpSave(); closeModal(); UI.tab = "social"; render(); toast("Post publicado!");
+  } catch (e) { c.busy = false; composer(); if (e && e.stage === "foto") { console.warn(e); toast("A foto não subiu (" + String(e.message || e.statusCode || "erro").slice(0, 60) + "). Tente de novo."); } else socErr(e); }
 }
 
 /* ---------- Comentários ---------- */
@@ -3602,7 +3617,7 @@ Object.assign(ACT, {
   socNew: () => { if (!socOn()) { go("social"); return; } if (!SOC.me) { closeModal(); go("social"); toast("Crie seu perfil primeiro"); return; } SOC.compose = SOC.compose || {body:"", att:""}; composer(); },
   qPost: () => { closeModal(); UI.tab = "social"; render(); if (SOC.me) ACT.socNew(); },
   pcAtt: el => { SOC.compose.att = el.dataset.arg; composer(); },
-  pcImgDel: () => { SOC.compose.file = null; SOC.compose.imgUrl = ""; composer(); },
+  pcImgDel: () => { SOC.compose.file = null; SOC.compose.imgUrl = ""; SOC.compose.imgData = ""; cmpSave(); composer(); },
   pcSend: () => pcSend(),
   socLike: async el => {
     const id = el.dataset.arg, p = SOC.posts.find(x => x.id === id), on = SOC.liked.has(id);
@@ -3653,7 +3668,11 @@ Object.assign(ACT, {
   actPost: el => { if (!socOn()) { toast("A Comunidade funciona no site, com sua conta"); return; } closeModal(); UI.tab = "social"; render(); SOC.compose = {body:"", att:"a:" + el.dataset.arg}; if (SOC.me) composer(); else toast("Crie seu perfil na Comunidade primeiro"); }
 });
 /* Ao sair da conta, limpa a Comunidade. */
-if (typeof CLOUD !== "undefined" && CLOUD.sb) CLOUD.sb.auth.onAuthStateChange(ev => { if (ev === "SIGNED_OUT") { SOC.me = undefined; SOC.posts = []; SOC.liked = new Set(); SOC.follows = new Set(); SOC.admin = false; } });
+/* r_cloud carrega depois deste script: espera ele existir. */
+setTimeout(() => {
+  if (typeof CLOUD !== "undefined" && CLOUD.sb) CLOUD.sb.auth.onAuthStateChange(ev => { if (ev === "SIGNED_OUT") { SOC.me = undefined; SOC.posts = []; SOC.liked = new Set(); SOC.follows = new Set(); SOC.admin = false; } });
+  try { if (sessionStorage.getItem(CMP_LS) && typeof CLOUD !== "undefined" && CLOUD.sb && UI.tab !== "social") { UI.tab = "social"; render(); } } catch (e) {}
+}, 0);
 if (UI.tab === "social") render();
 </script>
 <style>
@@ -3883,7 +3902,7 @@ async function cloudSession(session){
   const nm = (u.user_metadata && u.user_metadata.name) || "";
   if (nm) VIEWER.name = nm;
   await Store.connectWith(cloudDB(), u.id);
-  if (UI.tab === "inicio") render();
+  if (UI.tab === "inicio" || UI.tab === "social") render();
 }
 if (CLOUD.sb) {
   CLOUD.sb.auth.onAuthStateChange((ev, session) => {

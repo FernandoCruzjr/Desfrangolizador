@@ -70,7 +70,7 @@ async function cloudSession(session){
   const nm = (u.user_metadata && u.user_metadata.name) || "";
   if (nm) VIEWER.name = nm;
   await Store.connectWith(cloudDB(), u.id);
-  if (UI.tab === "inicio") render();
+  if (UI.tab === "inicio" || UI.tab === "social") render();
 }
 if (CLOUD.sb) {
   CLOUD.sb.auth.onAuthStateChange((ev, session) => {
