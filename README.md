@@ -13,6 +13,7 @@ Apresentação e como instalar: https://fernandocruzjr.github.io/Desfrangolizado
 - **Treino de hipertrofia:** 45 exercícios por grupo muscular com execução detalhada, fichas prontas (Full body, Push/Pull/Legs, Upper/Lower) e próprias, carga, reps, RPE, descanso cronometrado e gráfico de 1RM.
 - **Meu Progresso:** peso com média de 7 dias, medidas guiadas, % de gordura (Marinha dos EUA ou dobras), massa magra, cintura÷quadril e fotos de antes e depois.
 - **Lembretes:** refeições, água e suplementos calculados pela hora que você acorda e dorme.
+- **Saúde hormonal (redução de danos):** exames com faixas de referência, gráficos e alertas (hematócrito, HDL, fígado, rins…), registro do que a pessoa usa com datas e lembretes, pressão e frequência cardíaca, sintomas (incluindo sinais de virilização), cruzamento com peso, medidas e força, agenda de exames antes/durante/depois e PDF para o médico. O app nunca sugere substância, dose ou protocolo, e esses dados nunca aparecem na Comunidade.
 - **Níveis:** Frango → Em Evolução → Atleta → Avançado, conquistas e relatório em PDF.
 - **Conta na nuvem (Supabase):** login com e-mail e senha; cada pessoa vê só os próprios dados.
 - **Instalável:** funciona como app no celular e sem internet.
