@@ -237,6 +237,16 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .diag div{display:grid;grid-template-columns:20px minmax(0,1fr);gap:8px;font-size:14px}
 .diag svg{width:18px;height:18px;margin-top:2px}
 .diag .ok svg{color:var(--good)} .diag .bad svg{color:var(--warn)}
+.verdict{border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px;background:rgba(0,0,0,.2)}
+.verdict.good{border-color:var(--good)} .verdict.bad{border-color:var(--warn)}
+.verdict .vh{display:flex;align-items:center;gap:8px;font-size:16px}
+.verdict .vh svg{width:20px;height:20px;flex:none} .verdict.good .vh svg{color:var(--good)} .verdict.bad .vh svg{color:var(--warn)}
+.verdict .vnums{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:10px}
+.verdict .vnums div{display:flex;flex-direction:column;gap:2px} .verdict .vnums b{font-size:15px}
+.wtable td.hit{color:var(--good)} .wtable td.miss{color:var(--warn)} .wtable td.mid{color:var(--accent-ink)}
+.wtable td .of{color:var(--muted);font-size:11px} .wtable td svg{width:16px;height:16px;vertical-align:middle}
+.wtable tr.nolog td{color:var(--muted)} .wtable tfoot td{font-weight:700;border-bottom:0}
+.wtable td:first-child,.wtable th:first-child{position:sticky;left:0;background:var(--surface);z-index:1}
 
 /* ---------- plano ---------- */
 .goals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}

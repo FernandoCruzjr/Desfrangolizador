@@ -57,38 +57,85 @@ function badgesModal(){
 }
 
 /* ======================= RELATÓRIO SEMANAL ======================= */
+/* Faixa de saldo calórico diário (ingerido − gasto) que combina com cada objetivo. */
+const GOAL_BAL = {bulk:[150, 650], keep:[-250, 250], cut:[-800, -250]};
+function weekDays(){
+  const p = P(), today = todayISO(), from = addDays(today, -6), sess = allSessions();
+  return Array.from({length:7}, (_, i) => addDays(from, i)).map(d => {
+    const c = typeof calcDay === "function" ? calcDay(p, d) : calc(p), f = dayFlags(d, c);
+    const gasto = Math.round(c.tdee + (c.extra ? c.extra.kcal : 0)), treinos = sess.filter(s => s.date === d).length;
+    const r = {d, c, f, gasto, treinou: treinos > 0 || (typeof actsOn === "function" && actsOn(d).length > 0)};
+    if (!f.logged) return r;
+    const t = f.t, near = (v, m, tol) => m ? Math.abs(v - m) <= m * tol : true;
+    r.ok = {k: near(t.k, c.kcal, .1), p: t.p >= c.prot * .9, c: near(t.c, c.carb, .15), f: near(t.f, c.fat, .2), w: f.water >= c.water.total};
+    r.hits = Object.values(r.ok).filter(Boolean).length;
+    r.saldo = Math.round(t.k - gasto);
+    return r;
+  });
+}
+function weekEstimate(days){
+  const p = P(), lg = days.filter(x => x.f.logged), [lo, hi] = GOAL_BAL[p.goal] || GOAL_BAL.bulk;
+  if (!lg.length) return null;
+  const saldo = Math.round(lg.reduce((a, x) => a + x.saldo, 0) / lg.length);
+  const protDias = lg.filter(x => x.ok.p).length;
+  const kg = +(saldo * 7 / 7700).toFixed(2);
+  const st = saldo < lo ? "low" : saldo > hi ? "high" : "ok";
+  return {saldo, kg, st, lo, hi, protDias, n:lg.length};
+}
 function weeklyStats(){
   const p = P(), c = calc(p), today = todayISO(), from = addDays(today, -6);
-  const days = Array.from({length:7}, (_, i) => addDays(from, i)).map(d => ({d, f:dayFlags(d, c)}));
+  const days = weekDays();
   const logged = days.filter(x => x.f.logged);
   const avg = k => logged.length ? logged.reduce((a, x) => a + x.f.t[k], 0) / logged.length : 0;
   const sess = allSessions().filter(s => s.date >= from), ws = weekSets();
   const low = GROUPS.filter(g => ws[g.id] < 10).map(g => g.n);
   const ms = measures().filter(m => +m.weight), lastW = ms[ms.length - 1], prevW = [...ms].reverse().find(m => m.date <= addDays(today, -7));
   const rpes = sess.flatMap(s => s.ex.flatMap(e => e.sets.map(st => +st.rpe).filter(Boolean)));
-  return {goal:(GOALS[p.goal] || GOALS.bulk).n, metaKcal:c.kcal, metaProt:c.prot, metaCarb:c.carb, metaFat:c.fat, metaAgua:c.water.total,
+  const est = weekEstimate(days);
+  return {goal:(GOALS[p.goal] || GOALS.bulk).n, metaKcal:c.kcal, metaProt:c.prot, metaCarb:c.carb, metaFat:c.fat, metaAgua:c.water.total, gastoDiario:Math.round(c.tdee),
     diasComDieta:logged.length, mediaKcal:Math.round(avg("k")), mediaProt:Math.round(avg("p")), mediaCarb:Math.round(avg("c")), mediaGord:Math.round(avg("f")),
     diasProteinaBatida:days.filter(x => x.f.protOk).length, diasAguaBatida:days.filter(x => x.f.waterOk).length,
+    porDia:days.map(x => x.f.logged ? {data:x.d, kcal:Math.round(x.f.t.k), metaKcal:x.c.kcal, prot:Math.round(x.f.t.p), carb:Math.round(x.f.t.c), gord:Math.round(x.f.t.f), aguaMl:x.f.water, saldoKcal:x.saldo, acertos:x.hits + "/5", treinou:x.treinou} : {data:x.d, semRegistro:true, treinou:x.treinou}),
+    saldoMedioKcal: est ? est.saldo : null, variacaoPesoEstimadaSemana: est ? est.kg : null,
     treinos:sess.length, series:sess.reduce((a, s) => a + sessSets(s), 0), seriesPorGrupo:Object.fromEntries(GROUPS.map(g => [g.n, ws[g.id]])), gruposAbaixoDe10Series:low,
     rpeMedio: rpes.length ? +(rpes.reduce((a, b) => a + b, 0) / rpes.length).toFixed(1) : null,
     pesoAtual: lastW ? lastW.weight : null, variacaoPesoSemana: lastW && prevW ? +(lastW.weight - prevW.weight).toFixed(2) : null};
 }
+function weekVerdict(e, s){
+  const goal = P().goal || "bulk", sg = v => (v > 0 ? "+" : "") + fmt(v, 2);
+  const range = `${e.lo > 0 ? "+" : ""}${fmt(e.lo)} a ${e.hi > 0 ? "+" : ""}${fmt(e.hi)} kcal/dia`;
+  let tone, title, txt;
+  if (e.st === "ok") { tone = "good"; title = "Comendo certo para o objetivo"; txt = goal === "bulk" ? "Superávit na medida para ganhar massa com pouco ganho de gordura." : goal === "cut" ? "Déficit na medida para perder gordura preservando massa magra." : "Calorias próximas da manutenção, bom para recomposição."; }
+  else if (e.st === "low") { tone = "bad"; title = goal === "bulk" ? "Comendo pouco para hipertrofia" : goal === "cut" ? "Déficit agressivo demais" : "Comendo abaixo da manutenção"; txt = goal === "bulk" ? "Sem superávit suficiente o corpo não tem energia sobrando para construir músculo. Suba carboidrato até a meta." : goal === "cut" ? "Perder rápido demais aumenta a perda de massa magra e a fome. Volte para perto da meta." : "Nesse ritmo o peso tende a cair."; }
+  else { tone = "bad"; title = goal === "bulk" ? "Superávit alto: risco de ganhar gordura" : goal === "cut" ? "Sem déficit: assim não seca" : "Comendo acima da manutenção"; txt = goal === "bulk" ? "Acima de ~+650 kcal/dia o ganho extra vira mais gordura do que músculo. Corte o excedente em gordura e doces." : goal === "cut" ? "O gasto não está maior que o consumo. Ajuste porções e beliscos para fechar a meta." : "Nesse ritmo o peso tende a subir."; }
+  const prot = e.protDias < Math.ceil(e.n * .7) ? ` Proteína batida em só ${e.protDias} de ${e.n} dias: priorize isso, é o que mais protege e constrói músculo.` : "";
+  const real = s.variacaoPesoSemana != null ? `<br><span class="muted small">Na balança: ${sg(s.variacaoPesoSemana)} kg em relação à semana anterior. Variações de 0,5 a 1 kg podem ser água e glicogênio.</span>` : "";
+  const conf = e.n < 4 ? `<br><span class="muted small">Estimativa com só ${e.n} dia${e.n > 1 ? "s" : ""} registrado${e.n > 1 ? "s" : ""}: registre mais dias para ficar confiável.</span>` : "";
+  return `<div class="verdict ${tone}"><div class="vh">${ic(tone === "good" ? "check" : "alert")}<b>${title}</b></div>
+    <div class="vnums"><div><span class="small muted">Saldo médio</span><b class="num">${e.saldo > 0 ? "+" : ""}${fmt(e.saldo)} kcal/dia</b></div><div><span class="small muted">Peso estimado</span><b class="num">${sg(e.kg)} kg/semana</b></div><div><span class="small muted">Ideal para ${(GOALS[goal] || GOALS.bulk).n.toLowerCase()}</span><b class="num">${range}</b></div></div>
+    <p class="sub" style="margin:8px 0 0">${txt}${prot}${real}${conf}</p></div>`;
+}
 function weeklyDiag(){
-  const s = weeklyStats(), out = [];
-  const pr = s.metaProt ? s.mediaProt / s.metaProt : 0;
-  if (!s.diasComDieta && !s.treinos) return `<div class="note">${ic("info")}<span>Registre sua dieta e seus treinos durante a semana e o relatório aparece aqui, com diagnóstico do que ajustar.</span></div>`;
-  out.push([s.diasComDieta >= 5, `Dieta registrada em <b>${s.diasComDieta} de 7 dias</b>.`]);
-  if (s.diasComDieta) {
-    out.push([pr >= 0.9, `Proteína: média de <b>${s.mediaProt} g</b> (${Math.round(pr * 100)}% da meta de ${s.metaProt} g).`]);
-    const kp = s.mediaKcal / s.metaKcal;
-    out.push([Math.abs(kp - 1) <= 0.1, `Calorias: média de <b>${fmt(s.mediaKcal)} kcal</b> (${Math.round(kp * 100)}% da meta).`]);
-  }
-  out.push([s.diasAguaBatida >= 5, `Meta de água batida em <b>${s.diasAguaBatida} dia${s.diasAguaBatida === 1 ? "" : "s"}</b>.`]);
-  out.push([s.treinos >= 3, `<b>${s.treinos} treino${s.treinos === 1 ? "" : "s"}</b> e ${s.series} séries na semana${s.rpeMedio ? ` · RPE médio ${fmt(s.rpeMedio, 1)}` : ""}.`]);
+  const s = weeklyStats(), days = weekDays(), e = weekEstimate(days), out = [];
+  if (!s.diasComDieta && !s.treinos) return `<div class="note">${ic("info")}<span>Registre sua dieta e seus treinos durante a semana e o relatório aparece aqui: uma tabela com os acertos e as falhas de cada dia e a estimativa se você está comendo certo para o seu objetivo.</span></div>`;
+  const cell = (ok, v, m) => `<td class="${ok ? "hit" : "miss"}">${v}${m != null ? `<span class="of">/${m}</span>` : ""}</td>`;
+  const rows = days.map(x => {
+    const dn = `${DOW[parseISO(x.d).getDay()].slice(0, 3)} ${dShort(x.d)}`, tr = `<td>${x.treinou ? `<span style="color:var(--good)">${ic("check")}</span>` : `<span class="muted">—</span>`}</td>`;
+    if (!x.f.logged) return `<tr class="nolog"><td>${dn}</td><td>—</td><td colspan="6" style="text-align:left">Sem registro de dieta</td>${tr}</tr>`;
+    const t = x.f.t, c = x.c;
+    return `<tr><td>${dn}</td><td class="${x.hits >= 4 ? "hit" : x.hits >= 3 ? "mid" : "miss"}"><b>${x.hits}/5</b></td>${cell(x.ok.k, fmt(t.k), fmt(c.kcal))}<td>${x.saldo > 0 ? "+" : ""}${fmt(x.saldo)}</td>${cell(x.ok.p, Math.round(t.p), c.prot)}${cell(x.ok.c, Math.round(t.c), c.carb)}${cell(x.ok.f, Math.round(t.f), c.fat)}${cell(x.ok.w, fmt(x.f.water / 1000, 1), fmt(c.water.total / 1000, 1))}${tr}</tr>`;
+  }).join("");
+  const lg = days.filter(x => x.f.logged), cnt = k => lg.filter(x => x.ok[k]).length;
+  const foot = lg.length ? `<tfoot><tr><td>Semana</td><td>${lg.reduce((a, x) => a + x.hits, 0)}/${lg.length * 5}</td><td>${cnt("k")}/${lg.length}</td><td>${e.saldo > 0 ? "+" : ""}${fmt(e.saldo)}</td>${["p","c","f","w"].map(k => `<td>${cnt(k)}/${lg.length}</td>`).join("")}<td>${days.filter(x => x.treinou).length}/7</td></tr></tfoot>` : "";
+  const table = `<div class="tscroll"><table class="mtable wtable"><thead><tr><th>Dia</th><th>Nota</th><th>Kcal</th><th>Saldo</th><th>Prot g</th><th>Carb g</th><th>Gord g</th><th>Água L</th><th>Treino</th></tr></thead><tbody>${rows}</tbody>${foot}</table></div>
+    <p class="small muted" style="margin:6px 0 0">Verde = acertou (kcal ±10%, proteína ≥90%, carbo ±15%, gordura ±20%, água batida). Laranja = falhou. Saldo = ingerido − gasto do dia (GET ${fmt(s.gastoDiario)} kcal + atividades).</p>`;
+  if (s.treinos) out.push([s.treinos >= 3, `<b>${s.treinos} treino${s.treinos === 1 ? "" : "s"}</b> e ${s.series} séries na semana${s.rpeMedio ? ` · RPE médio ${fmt(s.rpeMedio, 1)}` : ""}.`]);
+  else out.push([false, "Nenhum treino registrado na semana."]);
   if (s.treinos) out.push([!s.gruposAbaixoDe10Series.length, s.gruposAbaixoDe10Series.length ? `Abaixo de 10 séries semanais: <b>${s.gruposAbaixoDe10Series.join(", ")}</b>.` : "Todos os grupos musculares com pelo menos 10 séries."]);
   if (s.rpeMedio && s.rpeMedio < 7) out.push([false, "Intensidade baixa: aproxime as séries da falha (RPE 8–9) para estimular hipertrofia."]);
-  if (s.variacaoPesoSemana != null) out.push([true, `Peso: <b>${s.variacaoPesoSemana > 0 ? "+" : ""}${fmt(s.variacaoPesoSemana, 2)} kg</b> em relação à semana anterior.`]);
-  return `<div class="diag">${out.map(([ok, t]) => `<div class="${ok ? "ok" : "bad"}">${ic(ok ? "check" : "alert")}<span>${t}</span></div>`).join("")}</div>`;
+  return `${e ? weekVerdict(e, s) : `<div class="note">${ic("info")}<span>Registre a dieta para ver a estimativa de peso e se você está comendo certo.</span></div>`}
+    ${lg.length ? table : ""}
+    <div class="diag" style="margin-top:12px">${out.map(([ok, t]) => `<div class="${ok ? "ok" : "bad"}">${ic(ok ? "check" : "alert")}<span>${t}</span></div>`).join("")}</div>`;
 }
 let SAMPLE = null, SAMPLE_IMG = false;
 async function aiReport(){
@@ -96,7 +143,7 @@ async function aiReport(){
   if (!SAMPLE) { box.innerHTML = `<div class="note">${ic("info")}<span>A análise com IA funciona quando o app é aberto pelo Claude, com sua conta. O diagnóstico acima continua disponível.</span></div>`; return; }
   box.textContent = "Analisando sua semana…";
   const s = weeklyStats();
-  const prompt = `Você é um nutricionista esportivo e coach com formação em fisiologia do exercício, especialista em dieta flexível (IIFYM) e treino de hipertrofia. Escreva em português do Brasil, em tom direto e motivador, um relatório semanal curto (até 170 palavras) para ${firstName()}, com objetivo de ${s.goal}. Estrutura: 1 frase de resumo; "Pontos fortes" (até 2 itens); "Ajustar" (até 3 itens concretos com números). Use apenas os dados abaixo, sem inventar. Sem markdown com asteriscos; use hífens para listas.\n\nDados dos últimos 7 dias (JSON):\n${JSON.stringify(s)}`;
+  const prompt = `Você é um nutricionista esportivo e coach com formação em fisiologia do exercício, especialista em dieta flexível (IIFYM) e treino de hipertrofia. Escreva em português do Brasil, em tom direto e motivador, um relatório semanal curto (até 170 palavras) para ${firstName()}, com objetivo de ${s.goal}. Estrutura: 1 frase dizendo se está comendo certo ou errado para o objetivo (use saldoMedioKcal e variacaoPesoEstimadaSemana); 1 frase sobre o melhor e o pior dia de porDia; "Pontos fortes" (até 2 itens); "Ajustar" (até 3 itens concretos com números). Use apenas os dados abaixo, sem inventar. Sem markdown com asteriscos; use hífens para listas.\n\nDados dos últimos 7 dias (JSON):\n${JSON.stringify(s)}`;
   try { await SAMPLE(prompt, {onText: ({text}) => { box.textContent = text; }}); }
   catch (e) { box.textContent = e.text || ""; if (e.code !== "cancelled") box.insertAdjacentHTML("beforeend", `<div class="note" style="margin-top:8px">${ic("info")}<span>${e.code === "not_granted" ? "A análise com IA não foi autorizada nesta visita." : e.code === "rate_limited" ? "Muitos pedidos agora. Tente de novo em alguns minutos." : "Não foi possível gerar a análise agora."}</span></div>`); }
 }
@@ -225,6 +272,9 @@ async function exportPDF(){
   y += 2; h("Ultimos 7 dias");
   line(`Dieta registrada em ${s.diasComDieta}/7 dias. Media: ${fmt(s.mediaKcal)} kcal · P ${s.mediaProt} g · C ${s.mediaCarb} g · G ${s.mediaGord} g.`);
   line(`Proteina batida em ${s.diasProteinaBatida} dias · agua batida em ${s.diasAguaBatida} dias · ${s.treinos} treinos, ${s.series} series${s.rpeMedio ? `, RPE medio ${s.rpeMedio}` : ""}.`);
+  if (s.saldoMedioKcal != null) line(`Saldo medio ${s.saldoMedioKcal > 0 ? "+" : ""}${fmt(s.saldoMedioKcal)} kcal/dia (ingerido - gasto) · peso estimado ${s.variacaoPesoEstimadaSemana > 0 ? "+" : ""}${fmt(s.variacaoPesoEstimadaSemana, 2)} kg/semana.`);
+  if (s.diasComDieta) { y += 1; doc.setFont("helvetica", "bold"); doc.setFontSize(9); ["Dia","Kcal/meta","Prot","Carb","Gord","Agua L","Treino","Saldo","Nota"].forEach((t, i) => doc.text(t, L + [0, 22, 50, 66, 82, 98, 116, 134, 154][i], y)); y += 5; doc.setFont("helvetica", "normal");
+    s.porDia.forEach(r => { if (y > 284) { doc.addPage(); y = 18; } const v = r.semRegistro ? [dShort(r.data), "sem registro", "", "", "", "", r.treinou ? "sim" : "-", "", ""] : [dShort(r.data), `${fmt(r.kcal)}/${fmt(r.metaKcal)}`, r.prot, r.carb, r.gord, fmt(r.aguaMl / 1000, 1), r.treinou ? "sim" : "-", (r.saldoKcal > 0 ? "+" : "") + fmt(r.saldoKcal), r.acertos]; v.forEach((t, i) => doc.text(clean(String(t)), L + [0, 22, 50, 66, 82, 98, 116, 134, 154][i], y)); y += 5; }); y += 1; }
   line("Series por grupo: " + Object.entries(s.seriesPorGrupo).map(([k, v]) => `${k} ${v}`).join(" · "));
   line(`Nivel: ${lv.cur.n} (${fmt(lv.xp)} XP) · sequencia de ${lv.streak} dias.`);
   y += 2; h("Medidas corporais");
