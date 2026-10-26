@@ -87,6 +87,13 @@ section{padding:56px 0}
 .os>div>b svg{width:18px;height:18px;color:var(--accent)}
 .os ol{font-size:14.5px}
 
+.guide{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.g{background:var(--glass);border:1px solid var(--glass-b);border-radius:18px;padding:18px 20px}
+.g h3{font-size:17px;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.g p{margin:0;color:var(--muted);font-size:14.5px}
+.tips{margin-top:16px;padding:16px 18px;border-radius:16px;background:rgba(61,220,151,.1);border:1px solid rgba(61,220,151,.3);font-size:15px}
+.tips b{color:var(--lime)}
+
 .faq details{background:var(--glass);border:1px solid var(--glass-b);border-radius:16px;padding:16px 18px;margin-bottom:10px}
 .faq summary{cursor:pointer;font-weight:700;list-style:none;display:flex;justify-content:space-between;gap:12px}
 .faq summary::after{content:"+";color:var(--accent);font-weight:800}
@@ -128,7 +135,7 @@ footer{border-top:1px solid var(--glass-b);padding:24px 0 max(28px,env(safe-area
       <p class="lede">O Desfrangolizador junta dieta flexível, treino de hipertrofia e acompanhamento do corpo em um só app. Ciência do esporte no seu bolso, sem dieta engessada e sem pagar nada.</p>
       <div class="cta">
         <a class="btn primary" href="./"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Criar minha conta grátis</a>
-        <a class="btn" href="#como">Como instalar</a>
+        <a class="btn" href="#como">Como começar</a>
       </div>
       <div class="trust">
         <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>Sem anúncios</span>
@@ -146,11 +153,14 @@ footer{border-top:1px solid var(--glass-b);padding:24px 0 max(28px,env(safe-area
     <div class="feats">
       <div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c2 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.5 1.2-4 2.5-5.5C10 10 11 11 12 11c-.5-3 0-5.5 0-8z"/></svg></div><h3>Plano sob medida</h3><p>Calcula seu gasto basal e total, a meta de +500 kcal para hipertrofia ou −500 kcal para secar, os macros e a água do seu dia.</p></div>
       <div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="7"/><circle cx="12" cy="13" r="3.5"/><path d="M3 4v6M5 4v6M3 7h2M4 10v10M21 4c-1.5 0-2 2-2 4s1 3 2 3v9"/></svg></div><h3>Dieta flexível (IIFYM)</h3><p>Mais de 600 alimentos com macros. Monte as refeições, acompanhe as barras de proteína, carboidrato e gordura e troque qualquer item grama a grama.</p></div>
-      <div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5v11M17.5 6.5v11M3 9v6M21 9v6M6.5 12h11"/></svg></div><h3>Treino de hipertrofia</h3><p>45 exercícios por grupo muscular com execução detalhada, erros comuns e dicas. Fichas prontas (Full body, Push/Pull/Legs, Upper/Lower) ou as suas.</p></div>
+      <div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5v11M17.5 6.5v11M3 9v6M21 9v6M6.5 12h11"/></svg></div><h3>Treino de hipertrofia</h3><p>129 exercícios por grupo e subgrupo muscular com execução detalhada, erros comuns e dicas. Fichas A a F prontas (Full body, Push/Pull/Legs, Upper/Lower) ou montadas por você.</p></div>
       <div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg></div><h3>Sobrecarga progressiva</h3><p>Registre carga, reps e RPE de cada série, use o cronômetro de descanso e veja o gráfico de força (1RM) com alerta de estagnação.</p></div>
       <div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17L17 3l4 4L7 21H3z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/></svg></div><h3>Meu Progresso</h3><p>Peso com média móvel de 7 dias, medidas guiadas, % de gordura, massa magra, cintura÷quadril e fotos de antes e depois lado a lado.</p></div>
       <div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a7 7 0 0 0-7 7v3.5L3.5 17h17L19 13.5V10a7 7 0 0 0-7-7zM10 20a2 2 0 0 0 4 0"/></svg></div><h3>Água, refeições e suplementos</h3><p>Sua água calculada pelo peso, idade e treino. Lembretes de refeição e suplementos pela hora que você acorda e dorme.</p></div>
       <div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="6"/><path d="M8.5 14l-1.5 7 5-3 5 3-1.5-7"/></svg></div><h3>Níveis e conquistas</h3><p>Suba de Frango para Em Evolução, Atleta e Avançado com constância. Diagnóstico da semana e relatório em PDF para o seu treinador.</p></div>
+      <div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="14" cy="4.5" r="2"/><path d="M7 21l3-6 3 2v4M10 15l1-5 4 3 3 1M8 10l3-1"/></svg></div><h3>Corrida e atividades</h3><p>Corra com GPS e mapa ao vivo, ou registre futebol, bike, luta e outros esportes. O gasto extra entra na sua meta de calorias e água do dia.</p></div>
+      <div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a6.5 6.5 0 0 1 3.5 5.5"/></svg></div><h3>Comunidade</h3><p>Poste treinos, corridas, refeições e fotos, siga amigos, curta e comente. Sua dieta, peso e medidas nunca aparecem sem você postar.</p></div>
+      <div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg></div><h3>Saúde hormonal</h3><p>Guarde exames (hormonal, hemograma, lipídico, fígado, rins), pressão e sintomas, com faixas de referência e alertas para levar ao médico.</p></div>
       <div class="feat"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg></div><h3>App no seu celular</h3><p>Instala na tela inicial como um app, abre sem internet e sincroniza com a sua conta em qualquer aparelho.</p></div>
     </div>
   </div>
@@ -161,7 +171,7 @@ footer{border-top:1px solid var(--glass-b);padding:24px 0 max(28px,env(safe-area
     <div class="sec-h"><div class="eyebrow">Por dentro</div><h2>Feito para usar todo dia</h2><p>Arraste para ver as telas.</p></div>
     <div class="gallery">
       <div class="shot"><div class="phone"><img src="assets/cadastro.webp" alt="Tela de criar conta" loading="lazy"></div><b>Crie sua conta</b><span>Nome, e-mail e senha</span></div>
-      <div class="shot"><div class="phone"><img src="assets/plano.webp" alt="Tela do plano com dados pessoais" loading="lazy"></div><b>Seu plano</b><span>Calorias, macros e água</span></div>
+      <div class="shot"><div class="phone"><img src="assets/plano.webp" alt="Tela do plano com dados pessoais" loading="lazy"></div><b>Calculadora</b><span>Calorias, macros e água</span></div>
       <div class="shot"><div class="phone"><img src="assets/dieta.webp" alt="Diário alimentar com macros do dia" loading="lazy"></div><b>Diário alimentar</b><span>Macros em tempo real</span></div>
       <div class="shot"><div class="phone"><img src="assets/treino.webp" alt="Treino em andamento com séries, carga e RPE" loading="lazy"></div><b>Treino</b><span>Carga, reps, RPE e descanso</span></div>
       <div class="shot"><div class="phone"><img src="assets/evolucao.webp" alt="Tela de evolução com peso, gordura e massa magra" loading="lazy"></div><b>Evolução</b><span>Peso, % de gordura e medidas</span></div>
@@ -189,10 +199,29 @@ footer{border-top:1px solid var(--glass-b);padding:24px 0 max(28px,env(safe-area
         </div>
       </div></div>
       <div class="step"><div>
-        <h3>Monte seu plano e comece</h3>
-        <ol><li>Em <b>Plano</b>, preencha sexo, idade, peso, altura, nível de atividade e objetivo. O app calcula calorias, macros e água.</li><li>Informe a hora que você acorda e dorme e ligue os lembretes, se quiser.</li><li>Registre as refeições em <b>Dieta</b>, os treinos em <b>Treino</b> e o peso e as medidas em <b>Evolução</b>.</li><li>Use o botão <b>+</b> no meio da barra para as ações rápidas do dia.</li></ol>
+        <h3>Monte seu plano na Calculadora</h3>
+        <p>Abra pelo cartão <b>Calculadora</b> no topo do Início ou pelo botão <b>+</b>.</p>
+        <ol><li>Preencha sexo, idade, peso, altura, nível de atividade e objetivo (ganhar massa, manter ou secar).</li><li>O app calcula seu gasto do dia, a meta de calorias, os macros e a água.</li><li>Informe a hora que você acorda e dorme. Os horários das refeições e da água saem daí, e você pode ligar os lembretes.</li></ol>
       </div></div>
     </div>
+  </div>
+</section>
+
+<section id="usar">
+  <div class="wrap">
+    <div class="sec-h"><div class="eyebrow">Guia de uso</div><h2>Seu dia no Desfrangolizador</h2><p>Na barra de baixo ficam <b>Início</b>, <b>Dieta</b>, o botão <b>+</b>, <b>Treino</b> e <b>Comunidade</b>. Calculadora, Evolução e Saúde hormonal abrem pelos cartões do Início ou pelo <b>+</b>.</p></div>
+    <div class="guide">
+      <div class="g"><h3><span>🏠</span>Início</h3><p>O resumo do dia: calorias, macros, água, o treino da semana e a dica do coach. Marque cada copo de água pelo botão +.</p></div>
+      <div class="g"><h3><span>🍽️</span>Dieta</h3><p>Escolha a refeição, busque o alimento e informe a quantidade em gramas. As barras de proteína, carboidrato e gordura mostram quanto falta. Dá para trocar um alimento por outro com os mesmos macros.</p></div>
+      <div class="g"><h3><span>🏋️</span>Treino</h3><p>Em <b>Fichas</b>, escolha uma sugestão ou monte a sua. Em <b>Treinar</b>, marque carga, repetições e RPE de cada série; o descanso começa sozinho. <b>Exercícios</b> explica a execução de cada um.</p></div>
+      <div class="g"><h3><span>🏃</span>Corrida</h3><p>Em <b>Treino › Corrida</b>, toque em iniciar para correr com GPS, ou registre um esporte pelo tempo. As calorias extras entram na meta do dia.</p></div>
+      <div class="g"><h3><span>📈</span>Evolução</h3><p>Pese-se de manhã, em jejum, 2 a 3 vezes por semana. Tire as medidas a cada 2 semanas e fotos no mesmo lugar e luz para comparar o antes e depois.</p></div>
+      <div class="g"><h3><span>👥</span>Comunidade</h3><p>Siga amigos, poste seu treino ou refeição e incentive a galera. Você pode denunciar ou bloquear quem passar do ponto.</p></div>
+      <div class="g"><h3><span>➕</span>Botão +</h3><p>Atalho para o que você faz todo dia: adicionar alimento, água, peso, iniciar treino, correr com GPS, postar e abrir a Calculadora.</p></div>
+      <div class="g"><h3><span>🏆</span>Relatório da semana</h3><p>Toda semana o app mostra, dia a dia, onde você acertou e errou nas calorias, proteína e água, e se está comendo certo para o seu objetivo.</p></div>
+    </div>
+    <div class="tips"><b>Dica de coach:</b> não precisa acertar tudo no primeiro dia. Comece batendo a proteína e a água, registre o treino e deixe o resto vir com a constância.</div>
+    <div class="cta" style="margin-top:20px"><a class="btn primary" href="./">Abrir o app</a></div>
   </div>
 </section>
 
@@ -215,7 +244,8 @@ footer{border-top:1px solid var(--glass-b);padding:24px 0 max(28px,env(safe-area
       <blockquote id="shareText">🔥 Conheça o Desfrangolizador, o app GRÁTIS para sair do modo frango!
 ✅ Calorias, macros e água calculados para você
 ✅ Dieta flexível com mais de 600 alimentos
-✅ Treinos de hipertrofia com carga, RPE e descanso
+✅ Treinos de hipertrofia com fichas, carga, RPE e descanso
+✅ Corrida com GPS e comunidade para treinar com os amigos
 ✅ Peso, medidas, % de gordura e fotos de antes e depois
 📲 Crie sua conta e instale no celular: https://fernandocruzjr.github.io/Desfrangolizador/sobre.html</blockquote>
       <div class="cta"><button class="btn primary" id="shareBtn" type="button">Compartilhar</button><button class="btn" id="copyBtn" type="button">Copiar texto</button></div>
