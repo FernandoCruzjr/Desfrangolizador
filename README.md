@@ -9,7 +9,7 @@ Apresentação e como instalar: https://fernandocruzjr.github.io/Desfrangolizado
 ## O que o app faz
 
 - **Plano sob medida:** gasto basal (Mifflin-St Jeor ou Katch-McArdle), gasto total, meta de +500 kcal para hipertrofia ou −500 kcal para secar, macros e água do dia.
-- **Dieta flexível:** mais de 250 alimentos com macros, refeições do dia, troca de alimento grama a grama e suplementos com horário.
+- **Dieta flexível:** mais de 600 alimentos com macros, refeições do dia, troca de alimento grama a grama e suplementos com horário.
 - **Treino de hipertrofia:** 45 exercícios por grupo muscular com execução detalhada, fichas prontas (Full body, Push/Pull/Legs, Upper/Lower) e próprias, carga, reps, RPE, descanso cronometrado e gráfico de 1RM.
 - **Meu Progresso:** peso com média de 7 dias, medidas guiadas, % de gordura (Marinha dos EUA ou dobras), massa magra, cintura÷quadril e fotos de antes e depois.
 - **Lembretes:** refeições, água e suplementos calculados pela hora que você acorda e dorme.
