@@ -19,6 +19,7 @@ function vDieta(){
         ${c.extra && c.extra.kcal ? `<div class="note good" style="margin-bottom:12px">${ic("run")}<span><b>+${fmt(c.extra.kcal)} kcal</b> de atividades extras somadas à meta de hoje${c.extra.water ? ` e <b>+${fmt(c.extra.water)} ml</b> de água` : ""}.</span></div>` : ""}
         <div style="display:flex;flex-direction:column;gap:12px">${macroBar("Proteína","p",MC.p,t.p,c.prot)}${macroBar("Carboidrato","c",MC.c,t.c,c.carb)}${macroBar("Gordura","f",MC.f,t.f,c.fat)}</div>
       </section>
+      <section class="panel"><div class="panel-h"><h2>${ic("clock")}Por refeição</h2></div>${perMealBlock(t, c, day, d)}</section>
     </aside>
     <aside class="d-extra" style="display:flex;flex-direction:column;gap:14px;min-width:0">
       <section class="panel"><div class="panel-h"><h2>${ic("whistle")}Para fechar os macros</h2></div>${suggestions(t, c)}</section>
@@ -41,6 +42,27 @@ function suggestions(t, c){
   if (rf > 6) out.push({lbl:`Faltam ${fmt(rf)} g de gordura`, col:MC.f, items:pick(["Azeite de oliva","Pasta de amendoim integral","Castanha-do-pará","Abacate"], rf, "f")});
   if (!out.length) return t.k > c.kcal + 150 ? `<div class="note warn">${ic("alert")}<span>Você passou <b>${fmt(t.k - c.kcal)} kcal</b> da meta. Um dia não define nada: compense levemente nos próximos dias ou siga normalmente.</span></div>` : `<div class="note">${ic("trophy")}<span><b>Macros fechados.</b> Dia completo dentro da meta.</span></div>`;
   return `<div style="display:flex;flex-direction:column;gap:14px">${out.map(o => `<div><div class="row" style="gap:7px;margin-bottom:6px;font-weight:700;font-size:14px"><i class="dot" style="background:${o.col}"></i>${o.lbl}</div><div class="tip-list">${o.items.map(x => `<button class="tip" style="border:0;text-align:left;width:100%" data-act="quickAdd" data-f="${x.f.id}" data-g="${x.g}"><span>${esc(x.f.n)}</span><span class="num">${x.g} g <span style="color:${o.col}">+${fmt(x.cov)}</span> ${ic("plus", 'style="width:14px;height:14px;display:inline;vertical-align:-2px"')}</span></button>`).join("")}</div></div>`).join("")}<p class="sub">Quantidades em porções realistas; o número colorido é quanto cada opção cobre. Toque para adicionar à próxima refeição.</p></div>`;
+}
+/* o que falta no dia dividido pelas refeições que ainda vão acontecer */
+function remainingMeals(day, d){
+  const left = day.meals.filter(m => !m.items.length);
+  if (d !== todayISO()) return left;
+  const nm = new Date().getHours() * 60 + new Date().getMinutes();
+  return left.filter(m => !m.time || toMin(m.time) >= nm - 60);
+}
+function remCount(day, d){ return UI.remN && UI.remN.d === d ? UI.remN.n : Math.max(1, remainingMeals(day, d).length); }
+function perMealBlock(t, c, day, d){
+  const rk = Math.max(0, c.kcal - t.k), rp = Math.max(0, c.prot - t.p), rc = Math.max(0, c.carb - t.c), rf = Math.max(0, c.fat - t.f);
+  if (rk < 80 && rp < 8) return `<div class="note">${ic("trophy")}<span><b>Nada a dividir.</b> Calorias e proteína do dia já estão fechadas.</span></div>`;
+  const left = remainingMeals(day, d), n = remCount(day, d), base = c.kcal / Math.max(1, day.meals.length), per = rk / n, w = +P().weight || 70;
+  const names = left.length && !(UI.remN && UI.remN.d === d) ? left.map(m => esc(m.name)).join(", ") : "";
+  const tips = [];
+  if (per > base * 1.4) tips.push(`Cada refeição ficou <b>${fmt(per / base * 100 - 100)}% maior</b> que o normal. Sem apetite? Use comida densa: shake de whey com aveia, banana e pasta de amendoim, azeite no prato, castanhas, granola. Líquido desce mais fácil.`);
+  if (rp / n > Math.max(50, w * 0.6)) tips.push(`Mais de ${fmt(Math.max(50, w * 0.6))} g de proteína por refeição é difícil de comer. Vale criar uma refeição extra (um shake já resolve).`);
+  return `<div class="row" style="margin-bottom:10px;gap:8px"><div style="flex:1;min-width:0"><div style="font-weight:700">Faltam <span class="num">${n}</span> refeiç${n === 1 ? "ão" : "ões"}</div>${names ? `<div class="sub">${names}</div>` : ""}</div><button class="iconbtn" data-act="remN" data-arg="-1" aria-label="Menos uma refeição">${ic("minus")}</button><button class="iconbtn" data-act="remN" data-arg="1" aria-label="Mais uma refeição">${ic("plus")}</button></div>
+  <div class="qty-prev"><div><div class="v num">${fmt(per)}</div><div class="l">kcal</div></div><div><div class="v num">${fmt(rp / n)}</div><div class="l"><i class="dot c-p"></i>Proteína</div></div><div><div class="v num">${fmt(rc / n)}</div><div class="l"><i class="dot c-c"></i>Carbo</div></div><div><div class="v num">${fmt(rf / n)}</div><div class="l"><i class="dot c-f"></i>Gordura</div></div></div>
+  <p class="sub" style="margin-top:8px">Média por refeição para fechar o dia: faltam ${fmt(rk)} kcal, ${fmt(rp)} g de proteína, ${fmt(rc)} g de carbo e ${fmt(rf)} g de gordura.</p>
+  ${tips.map(x => `<div class="note warn" style="margin-top:8px">${ic("alert")}<span>${x}</span></div>`).join("")}`;
 }
 function nextMealIndex(day){
   if (UI.date !== todayISO()) return 0;
@@ -315,6 +337,7 @@ const ACT = {
   toggle: el => { const k = el.dataset.k, p = P(), on = !p[k]; setP({[k]: on}); if (on && (k === "remMeals" || k === "remWater" || k === "remSupps")) { initAudio(); askNotify(); toast("Lembretes ativados"); } render(); },
   setmeals: el => { setP({meals:+el.dataset.v, mealTimes:null}); render(); },
   resetTimes: () => { setP({mealTimes:null}); render(); },
+  remN: el => { const d = UI.date; UI.remN = {d, n: clamp(remCount(getDay(d), d) + +el.dataset.arg, 1, 8)}; render(); },
   testAlert: () => { initAudio(); fireReminder({kind:"water", label:"teste", ml:waterPlan(P())[0].ml, t:""}); },
   copyTimes: () => {
     const p = P(), lines = [];
