@@ -15,6 +15,7 @@ Apresentação e como instalar: https://fernandocruzjr.github.io/Desfrangolizado
 - **Lembretes:** refeições, água e suplementos calculados pela hora que você acorda e dorme.
 - **Saúde hormonal (redução de danos):** exames com faixas de referência, gráficos e alertas (hematócrito, HDL, fígado, rins…), registro do que a pessoa usa com datas e lembretes, pressão e frequência cardíaca, sintomas (incluindo sinais de virilização), cruzamento com peso, medidas e força, agenda de exames antes/durante/depois e PDF para o médico. O app nunca sugere substância, dose ou protocolo, e esses dados nunca aparecem na Comunidade.
 - **Níveis:** Frango → Em Evolução → Atleta → Avançado, conquistas e relatório em PDF.
+- **Comunidade:** feed no estilo Instagram, stories que somem em 24 h (com "visto por"), post do Resumo do dia, curtidas, comentários, seguir, denunciar e bloquear.
 - **Conta na nuvem (Supabase):** login com e-mail e senha; cada pessoa vê só os próprios dados.
 - **Instalável:** funciona como app no celular e sem internet.
 
@@ -26,3 +27,4 @@ Apresentação e como instalar: https://fernandocruzjr.github.io/Desfrangolizado
 - `src/`: partes do código-fonte.
 - `supabase/schema.sql`: tabela `user_docs` com RLS.
 - `supabase/community.sql`: Comunidade (perfis, posts, curtidas, comentários, seguir, bloquear, denúncias e moderação) com RLS e o bucket `media` para fotos.
+- `supabase/stories.sql`: stories de 24 h, quem viu cada story e posts do Resumo do dia (rode depois de `community.sql`).

@@ -14,7 +14,7 @@ function vDieta(){
       <div class="row"><button class="btn" data-act="addMeal">${ic("plus")}Nova refeição</button><button class="btn" data-act="copyPrev">${ic("copy")}Copiar dia anterior</button><span class="spacer"></span>${has ? `<button class="btn ghost danger" data-act="clearDay">${ic("trash")}Limpar dia</button>` : ""}</div>
     </div>
     <aside class="d-sum" style="min-width:0">
-      <section class="panel"><div class="panel-h"><h2>${ic("target")}Resumo do dia</h2><span class="pill ac">${(GOALS[p.goal] || GOALS.bulk).n}</span></div>
+      <section class="panel"><div class="panel-h"><h2>${ic("target")}Resumo do dia</h2><span class="row" style="gap:6px;flex-wrap:nowrap"><span class="pill ac">${(GOALS[p.goal] || GOALS.bulk).n}</span>${has && typeof dayPostBtn === "function" ? dayPostBtn() : ""}</span></div>
         <div style="display:flex;justify-content:center;margin-bottom:14px">${ring(t.k, c.kcal)}</div>
         ${c.extra && c.extra.kcal ? `<div class="note good" style="margin-bottom:12px">${ic("run")}<span><b>+${fmt(c.extra.kcal)} kcal</b> de atividades extras somadas à meta de hoje${c.extra.water ? ` e <b>+${fmt(c.extra.water)} ml</b> de água` : ""}.</span></div>` : ""}
         <div style="display:flex;flex-direction:column;gap:12px">${macroBar("Proteína","p",MC.p,t.p,c.prot)}${macroBar("Carboidrato","c",MC.c,t.c,c.carb)}${macroBar("Gordura","f",MC.f,t.f,c.fat)}</div>
