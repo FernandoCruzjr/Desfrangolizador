@@ -352,8 +352,11 @@ function vSocial(){
     </div>`;
 }
 function postCard(p){
-  const u = p.profiles || {}, liked = SOC.liked.has(p.id), d = p.data || {};
+  const u = p.profiles || {}, liked = SOC.liked.has(p.id), d = p.data && typeof p.data === "object" ? p.data : {};
   let extra = "";
+  // Os dados do post vêm de outra pessoa: um post malformado não pode quebrar o feed.
+  try {
+  ["track", "items", "ex"].forEach(k => { if (d[k] != null && !Array.isArray(d[k])) d[k] = []; });
   if (p.kind === "run" && d.type) {
     const t = typeof AT === "function" ? AT(d.type) : {n:"Atividade", ic:"run"};
     extra = `<div class="post-act"><div class="map">${d.track && d.track.length > 1 && typeof routeSVG === "function" ? routeSVG(d.track, "", 4) : ic(t.ic)}</div><div><b>${esc(t.n)}</b><div class="nums" style="margin-top:6px">${d.km ? `<div><b>${fmt(d.km, 2)}</b><span>km</span></div>` : ""}<div><b>${durTxt(d.min)}</b><span>tempo</span></div>${d.km && d.type !== "bike" ? `<div><b>${paceTxt(d.min * 60, d.km)}</b><span>ritmo /km</span></div>` : ""}<div><b>${fmt(d.kcal)}</b><span>kcal</span></div></div></div></div>`;
@@ -364,10 +367,11 @@ function postCard(p){
       <div class="row num" style="gap:14px;font-size:13.5px"><span><i class="dot c-p"></i> P ${fmt(d.p)} g</span><span><i class="dot c-c"></i> C ${fmt(d.c)} g</span><span><i class="dot c-f"></i> G ${fmt(d.f)} g</span></div>
       <ul>${(d.items || []).slice(0, 12).map(it => `<li>${esc(it.n)} · ${fmt(it.g)} g</li>`).join("")}</ul></div>`;
   } else if (p.kind === "workout" && d.name) {
-    extra = `<div class="post-wk"><b>${ic("dumbbell", 'style="width:18px;height:18px;vertical-align:-3px;color:var(--accent)"')} ${esc(d.name)}</b> <span class="sub">· ${fmt(d.sets)} séries · ${fmt(d.vol)} kg de volume${d.min ? " · " + durTxt(d.min) : ""}</span><ul>${(d.ex || []).slice(0, 8).map(e => `<li>${esc(e.n)}: ${e.s}× ${esc(e.best || "")}</li>`).join("")}</ul></div>`;
+    extra = `<div class="post-wk"><b>${ic("dumbbell", 'style="width:18px;height:18px;vertical-align:-3px;color:var(--accent)"')} ${esc(d.name)}</b> <span class="sub">· ${fmt(d.sets)} séries · ${fmt(d.vol)} kg de volume${d.min ? " · " + durTxt(d.min) : ""}</span><ul>${(d.ex || []).slice(0, 8).map(e => `<li>${esc(e.n)}: ${fmt(e.s)}× ${esc(e.best || "")}</li>`).join("")}</ul></div>`;
   } else if (p.kind === "day" && d.mk) {
     extra = dayCard(d);
   }
+  } catch (e) { extra = ""; }
   const img = safeImg(p.image_url), nl = cnt(p, "likes"), nc = cnt(p, "comments");
   return `<article class="post ig" id="p-${p.id}">
     <div class="post-h">${uavS(u, "sm")}<button class="uname" data-act="socProfile" data-arg="${u.id || ""}">${esc(u.username || "")}<small>${esc(u.display_name || "")}</small></button>
