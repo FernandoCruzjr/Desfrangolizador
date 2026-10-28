@@ -45,6 +45,7 @@ Object.assign(ACT, {
   gridToggle: () => { UI.gridOn = !UI.gridOn; render(); },
   delPhotos: () => confirmBox("Apagar fotos?", `${UI.sel.length} foto(s) selecionada(s) serão apagadas da sua conta.`, "Apagar", () => { UI.sel.forEach(k => Store.del(k)); UI.sel = []; render(); }),
   scrollForm: () => { const f = document.getElementById("mform"); if (f) f.scrollIntoView({behavior:"smooth", block:"start"}); },
+  biaOpen: () => { const d = document.getElementById("m-bia"); if (d) { d.open = true; d.scrollIntoView({behavior:"smooth", block:"start"}); const i = document.getElementById("m-weight"); if (i) i.focus({preventScroll:true}); } },
   saveTpl: () => { const d = draft(); if (!d.ex.length) { toast("Adicione exercícios antes de salvar"); return; } const doc = Store.get("tpls") || {list:[]}; const list = (doc.list || []).concat([{id:"t" + uid(), n:d.name || "Minha ficha", d:d.ex.map(e => (EX[e.id] || {}).n).slice(0, 3).join(", ") + (d.ex.length > 3 ? "…" : ""), ex:d.ex.map(e => e.id), custom:true}]); Store.put("tpls", {list}); toast("Ficha salva em Começar um treino"); },
   delTpl: (el, ev) => { ev.stopPropagation(); confirmBox("Excluir ficha?", "A ficha sai da lista e da agenda.", "Excluir", () => { const doc = Store.get("tpls") || {list:[]}; Store.put("tpls", {list:(doc.list || []).filter(t => t.id !== el.dataset.arg)}); const ag = Object.assign({}, P().agenda || {}); Object.keys(ag).forEach(k => { if (ag[k] === el.dataset.arg) delete ag[k]; }); setP({agenda: ag}); render(); }); },
   strEx: el => { UI.strEx = el.dataset.arg; render(); }
