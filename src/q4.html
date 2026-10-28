@@ -222,8 +222,19 @@ const MGROUPS = [
     ["hip","Quadril","cm","No ponto de maior circunferência dos glúteos."],
     ["calf","Panturrilha","cm","No ponto mais grosso, em pé."],
     ["forearm","Antebraço","cm","Logo abaixo do cotovelo, no ponto mais largo, com o punho fechado."]]},
-  {id:"bio", n:"Composição corporal", d:"opcional", f:[
-    ["bf","% de gordura (bioimpedância ou avaliação)","%","Se você tem o valor de uma avaliação física, informe aqui."],
+  {id:"bia", n:"Balança de bioimpedância", d:"opcional", f:[
+    ["bf","% de gordura","%","Da balança de bioimpedância ou de uma avaliação física."],
+    ["muscle","Massa muscular","kg","Na balança aparece como músculo ou massa muscular (kg)."],
+    ["skm","Músculo esquelético","%","Taxa de músculo esquelético, se a balança mostrar."],
+    ["ffm","Massa livre de gordura","kg","Peso sem gordura (às vezes chamado de massa magra)."],
+    ["water","Água corporal","%","Taxa de água do corpo."],
+    ["visc","Gordura visceral","nível","Índice de 1 a 59. Até 9 é normal."],
+    ["subq","Gordura subcutânea","%","A gordura logo abaixo da pele."],
+    ["bone","Massa óssea","kg","Muda muito pouco; serve mais como referência."],
+    ["protein","Proteína","%","Taxa de proteína do corpo."],
+    ["bmr","Metabolismo basal (TMB)","kcal","O gasto em repouso que a balança estima."],
+    ["bage","Idade corporal","anos","Estimativa da balança, só como curiosidade."]]},
+  {id:"bio", n:"Dobras cutâneas", d:"opcional", f:[
     ["sf_chest","Dobra peitoral","mm","Diagonal, entre a axila e o mamilo (homens)."],
     ["sf_abd","Dobra abdominal","mm","Vertical, 2 cm ao lado do umbigo (homens)."],
     ["sf_thigh","Dobra da coxa","mm","Vertical, no meio da coxa, na frente (homens e mulheres)."],
@@ -231,7 +242,17 @@ const MGROUPS = [
     ["sf_supra","Dobra suprailíaca","mm","Diagonal, logo acima da crista do quadril (mulheres)."]]}
 ];
 const MFIELDS = MGROUPS.flatMap(g => g.f).concat([["abdomen","Abdômen","cm",""]]);
-const CHART_FIELDS = ["weight","waist","arm","chest","thigh","neck","hip","calf","forearm","abdomen","bf"];
+const CHART_FIELDS = ["weight","waist","arm","chest","thigh","neck","hip","calf","forearm","abdomen","bf","muscle","skm","ffm","water","visc","subq","bone","protein","bmr","bage"];
+const BIA_FIELDS = ["bf","muscle","skm","ffm","water","visc","subq","bone","protein","bmr","bage"];
+/* Faixas de referência das balanças de bioimpedância (adultos). */
+function biaStatus(p, k, v){
+  const m = p.sex !== "f";
+  if (k === "bf") return m ? (v < 8 ? ["warn","muito baixo"] : v <= 20 ? ["good","faixa saudável"] : v <= 25 ? ["warn","acima do ideal"] : ["bad","alto"]) : (v < 15 ? ["warn","muito baixo"] : v <= 30 ? ["good","faixa saudável"] : v <= 35 ? ["warn","acima do ideal"] : ["bad","alto"]);
+  if (k === "water") { const lo = m ? 50 : 45, hi = m ? 65 : 60; return v < lo ? ["warn","baixa: beba mais água"] : v > hi ? ["good","alta"] : ["good","normal"]; }
+  if (k === "visc") return v <= 9 ? ["good","normal"] : v <= 14 ? ["warn","alta"] : ["bad","muito alta"];
+  if (k === "protein") return v < 16 ? ["warn","baixa"] : v <= 20 ? ["good","normal"] : ["good","ótima"];
+  return null;
+}
 const measures = () => ((Store.get("measures") || {}).list || []).slice().sort((a, b) => a.date.localeCompare(b.date));
 function navyBF(p, m){
   const h = +p.height, n = +m.neck, w = +m.waist, hip = +m.hip;

@@ -126,6 +126,7 @@ function vEvolucao(){
   const ph = photos(), sel = UI.sel.filter(k => ph.some(x => x.key === k));
   const cmp = sel.length === 2 ? sel.map(k => ph.find(x => x.key === k)).sort((a, b) => a.date.localeCompare(b.date)) : null;
   const histCols = CHART_FIELDS.filter(k => ms.some(m => +m[k])).map(k => MFIELDS.find(f => f[0] === k));
+  const bia = ms.filter(m => BIA_FIELDS.some(k => +m[k] && k !== "bf") || (+m.bf && +m.weight)), biaLast = bia[bia.length - 1], biaFirst = bia[0];
   return `
   <div class="ph"><div><div class="eyebrow">Métricas corporais · meu progresso</div><h1>Evolução</h1><p class="lede">A fita métrica e as fotos mostram o que a balança esconde. Meça a cada 1–2 semanas, pela manhã, em jejum e antes de treinar.</p></div><div class="row"><button class="btn" data-act="photoNew">${ic("camera")}Foto</button><button class="btn primary" data-act="scrollForm">${ic("plus")}Registrar medidas</button></div></div>
   <section class="panel"><div class="stats" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
@@ -146,12 +147,13 @@ function vEvolucao(){
     <section class="panel" id="mform"><div class="panel-h"><h2>${ic("ruler")}Novo registro</h2></div>
       <div class="col">
         <div class="field"><label for="m-date">Data</label><input id="m-date" class="input" type="date" value="${todayISO()}"></div>
-        ${MGROUPS.map(g => `<div class="mgroup"><div class="mgroup-h">${g.n}<span class="pill">${g.d}</span></div>${g.id === "bio" ? `<details><summary class="sub" style="font-weight:600">Mostrar % de gordura e dobras cutâneas</summary><div class="mgroup" style="margin-top:10px">${g.f.map(f => mfieldHTML(f, lastAny)).join("")}</div></details>` : g.f.map(f => mfieldHTML(f, lastAny)).join("")}</div>`).join("")}
+        ${MGROUPS.map(g => `<div class="mgroup"><div class="mgroup-h">${g.n}<span class="pill">${g.d}</span></div>${g.id === "bia" ? `<details id="m-bia" ${biaLast ? "open" : ""}><summary class="sub" style="font-weight:600">Copiar os números da balança (o peso vai em Fundamentais)</summary><div class="mgroup" style="margin-top:10px">${g.f.map(f => mfieldHTML(f, lastAny)).join("")}</div></details>` : g.id === "bio" ? `<details><summary class="sub" style="font-weight:600">Mostrar dobras cutâneas (adipômetro)</summary><div class="mgroup" style="margin-top:10px">${g.f.map(f => mfieldHTML(f, lastAny)).join("")}</div></details>` : g.f.map(f => mfieldHTML(f, lastAny)).join("")}</div>`).join("")}
         <button class="btn primary" data-act="saveMeasure">${ic("check")}Salvar registro</button>
         <details><summary class="sub" style="font-weight:600">Dicas de ouro para medir</summary><ul class="blist cue" style="margin-top:10px">${["Consistência vale mais que precisão: medindo sempre do mesmo jeito, a tendência aparece.","Mesmo horário: pela manhã, em jejum e antes de treinar. O pump do treino infla as medidas.","Mesmo lado: escolha um lado (ex.: direito) para braço e coxa, ou anote os dois separados.","Fita justa sem afundar a pele. Prefira fita de fibra de vidro ou metal, que não estica.","Frequência: a cada 1 ou 2 semanas. O músculo cresce devagar.","Fotos a cada 4 semanas, mesma pose, local e luz. Elas mostram densidade e formato."].map(x => `<li>${ic("check")}<span>${x}</span></li>`).join("")}</ul></details>
       </div>
     </section>
   </div>
+  ${biaPanel(p, biaLast, biaFirst)}
   <section class="panel"><div class="panel-h"><h2>${ic("image")}Antes & depois</h2><div class="row"><span class="sub">${ph.length ? "Selecione 2 fotos para comparar" : ""}</span><button class="btn sm" data-act="photoNew">${ic("plus")}Nova foto</button></div></div>
     ${ph.length ? `<div class="photos">${ph.map(x => { const i = sel.indexOf(x.key); return `<button class="ph-card" data-act="phSel" data-arg="${x.key}" aria-pressed="${i >= 0}" aria-label="Foto de ${dLabel(x.date)}, ${esc(x.pose)}"><img src="${x.data}" alt="" loading="lazy">${i >= 0 ? `<span class="sel">${i + 1}</span>` : ""}<span class="cap">${dShort(x.date)} · ${esc(x.pose)}</span></button>`; }).join("")}</div>` : `<div class="chart-empty">${ic("camera")}<b>Nenhuma foto ainda</b><span>Tire a primeira hoje: frente, lado e costas. Daqui a 4 semanas você compara lado a lado.</span><button class="btn primary sm" data-act="photoNew">Tirar foto</button></div>`}
     ${cmp ? `<div style="margin-top:14px" class="col"><div class="row"><b>Comparação · ${Math.round((parseISO(cmp[1].date) - parseISO(cmp[0].date)) / 864e5)} dias</b><span class="spacer"></span><button class="btn sm ghost" data-act="gridToggle">${ic("grid")}${UI.gridOn ? "Ocultar grade" : "Mostrar grade"}</button><button class="btn sm ghost danger" data-act="delPhotos">${ic("trash")}Apagar selecionadas</button></div>
@@ -160,6 +162,23 @@ function vEvolucao(){
   <section class="panel"><div class="panel-h"><h2>${ic("list")}Histórico</h2><span class="sub">${ms.length} registro${ms.length === 1 ? "" : "s"}</span></div>
     ${ms.length ? `<div class="tscroll"><table class="mtable"><thead><tr><th>Data</th>${histCols.map(([, n, u]) => `<th>${n.replace(/ \(.*\)/, "")} (${u})</th>`).join("")}<th>%G</th><th></th></tr></thead><tbody>${[...ms].reverse().map((m, i, arr) => { const prev = arr[i + 1]; const b = bfOf(p, m); return `<tr><td>${dLabel(m.date)} ${parseISO(m.date).getFullYear()}</td>${histCols.map(([k]) => { const v = +m[k], pv = prev ? +prev[k] : 0; const dd = v && pv ? v - pv : null; return `<td>${v ? fmt(v, 1) : "—"}${dd ? `<br><span class="delta">${dd > 0 ? "+" : ""}${fmt(dd, 1)}</span>` : ""}</td>`; }).join("")}<td>${b ? fmt(b.v, 1) : "—"}</td><td><button class="iconbtn" data-act="delMeasure" data-arg="${m.id}" aria-label="Apagar registro de ${dLabel(m.date)}">${ic("trash")}</button></td></tr>`; }).join("")}</tbody></table></div>` : `<div class="empty">Sem registros ainda.</div>`}
   </section>`;
+}
+function biaPanel(p, last, first){
+  const tips = ["Sempre no mesmo horário: de manhã, em jejum, depois de ir ao banheiro e antes de treinar.","Pés descalços, secos e limpos, encostando bem nos eletrodos de metal. Pé molhado ou com creme muda o resultado.","Nada de medir logo após treino, sauna, banho quente, álcool ou muita água: tudo isso mexe na água do corpo e no % de gordura.","Com o ciclo menstrual a água varia; compare medidas da mesma fase do ciclo.","Confira no app da balança se altura, idade e sexo estão certos. Modo atleta, se tiver, só para quem treina pesado há anos.","O número exato importa pouco: a bioimpedância pode errar 3 a 5 pontos. O que vale é a tendência ao longo das semanas.","Quem usa marca-passo ou outro implante eletrônico, ou está grávida, não deve usar a função de bioimpedância."];
+  const tipsHTML = `<details><summary class="sub" style="font-weight:600">Como medir para o número ser confiável</summary><ul class="blist cue" style="margin-top:10px">${tips.map(x => `<li>${ic("check")}<span>${x}</span></li>`).join("")}</ul></details>`;
+  if (!last) return `<section class="panel"><div class="panel-h"><h2>${ic("scale")}Balança de bioimpedância</h2></div><div class="col"><p class="sub">Tem balança que mede gordura, músculo e água? Suba nela, abra o app da balança e copie os números no bloco <b>Balança de bioimpedância</b> do registro. Aqui aparecem o último resultado, as faixas de referência e a evolução de cada número.</p><button class="btn sm" data-act="biaOpen">${ic("plus")}Registrar dados da balança</button>${tipsHTML}</div></section>`;
+  const fat = +last.bf && +last.weight ? last.weight * last.bf / 100 : null;
+  const cell = (k, label, u, d = 1) => { const v = +last[k]; if (!v) return ""; const s = biaStatus(p, k, v), f0 = first && first !== last ? +first[k] : 0, dd = f0 ? v - f0 : null;
+    return `<div class="stat"><span class="lbl">${label}</span><div class="v num">${fmt(v, d)}<small>${u}</small></div><div class="d">${s ? `<span class="pill ${s[0]}">${s[1]}</span> ` : ""}${dd ? `<span class="delta">${dd > 0 ? "+" : ""}${fmt(dd, d)} desde ${dLabel(first.date)}</span>` : ""}</div></div>`; };
+  const c = calc(p);
+  return `<section class="panel"><div class="panel-h"><h2>${ic("scale")}Balança de bioimpedância</h2><span class="sub">${dLabel(last.date)}</span></div>
+    <div class="stats" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">
+      ${cell("bf","% de gordura","%")}${fat ? `<div class="stat"><span class="lbl">Gordura</span><div class="v num">${fmt(fat, 1)}<small>kg</small></div><div class="d">peso × % de gordura</div></div>` : ""}
+      ${cell("muscle","Massa muscular","kg")}${cell("skm","Músculo esquelético","%")}${cell("ffm","Livre de gordura","kg")}${cell("water","Água","%")}${cell("visc","Gordura visceral","", 0)}${cell("subq","Gordura subcutânea","%")}${cell("bone","Massa óssea","kg")}${cell("protein","Proteína","%")}${cell("bmr","TMB da balança","kcal", 0)}${cell("bage","Idade corporal","anos", 0)}
+    </div>
+    ${+last.bmr && c && c.bmr ? `<p class="sub" style="margin-top:8px">A TMB do seu plano é <b class="num">${fmt(c.bmr)}</b> kcal; a da balança, <b class="num">${fmt(last.bmr)}</b> kcal. Diferenças de até 10% são normais. O % de gordura deste registro já entra no cálculo de massa magra e na fórmula Katch-McArdle.</p>` : ""}
+    <p class="sub" style="margin-top:8px">Toque em <b>Tendência</b> no número que quiser (gordura, músculo, água…) para ver a evolução.</p>
+    ${tipsHTML}</section>`;
 }
 function mfieldHTML([k, n, u, hint], lastAny){
   return `<div class="mfield"><div style="min-width:0"><label class="mn" for="m-${k}">${n}</label><div class="mh">${hint}</div></div><div class="input-u"><input id="m-${k}" class="input num" type="number" inputmode="decimal" step="0.1" min="0" placeholder="${lastAny[k] ? fmt(lastAny[k], 1) : ""}"><span>${u}</span></div></div>`;
@@ -377,7 +396,8 @@ const ACT = {
     const list = measures(), ex = list.find(m => m.date === date);
     if (ex) Object.assign(ex, rec, {id:ex.id}); else list.push(rec);
     Store.put("measures", {list});
-    if (rec.weight && date >= (list.filter(m => m.weight).map(m => m.date).sort().pop() || "")) { setP({weight:rec.weight}); toast("Registro salvo · peso do plano atualizado"); } else toast("Registro salvo");
+    if (rec.bf && date >= (list.filter(m => m.bf).map(m => m.date).sort().pop() || "")) setP({bf:rec.bf});
+    if (rec.weight && date >= (list.filter(m => m.weight).map(m => m.date).sort().pop() || "")) { setP({weight:rec.weight}); toast("Registro salvo · peso do plano atualizado"); } else toast(rec.bf ? "Registro salvo · % de gordura do plano atualizado" : "Registro salvo");
     render();
   },
   delMeasure: el => confirmBox("Apagar registro?", "Essa medição será removida do histórico.", "Apagar", () => { Store.put("measures", {list: measures().filter(m => m.id !== el.dataset.arg)}); render(); }),

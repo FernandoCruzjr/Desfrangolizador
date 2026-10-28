@@ -11,7 +11,7 @@ Apresentação e como instalar: https://fernandocruzjr.github.io/Desfrangolizado
 - **Plano sob medida:** gasto basal (Mifflin-St Jeor ou Katch-McArdle), gasto total, meta de +500 kcal para hipertrofia ou −500 kcal para secar, macros e água do dia.
 - **Dieta flexível:** mais de 600 alimentos com macros, refeições do dia, troca de alimento grama a grama e suplementos com horário.
 - **Treino de hipertrofia:** 45 exercícios por grupo muscular com execução detalhada, fichas prontas (Full body, Push/Pull/Legs, Upper/Lower) e próprias, carga, reps, RPE, descanso cronometrado e gráfico de 1RM.
-- **Meu Progresso:** peso com média de 7 dias, medidas guiadas, % de gordura (Marinha dos EUA ou dobras), massa magra, cintura÷quadril e fotos de antes e depois.
+- **Meu Progresso:** peso com média de 7 dias, medidas guiadas, % de gordura (Marinha dos EUA ou dobras), massa magra, cintura÷quadril, fotos de antes e depois e registro da balança de bioimpedância (gordura, músculo, água, gordura visceral, massa óssea, TMB, idade corporal) com faixas de referência e gráficos.
 - **Lembretes:** refeições, água e suplementos calculados pela hora que você acorda e dorme.
 - **Saúde hormonal (redução de danos):** exames com faixas de referência, gráficos e alertas (hematócrito, HDL, fígado, rins…), registro do que a pessoa usa com datas e lembretes, pressão e frequência cardíaca, sintomas (incluindo sinais de virilização), cruzamento com peso, medidas e força, agenda de exames antes/durante/depois e PDF para o médico. O app nunca sugere substância, dose ou protocolo, e esses dados nunca aparecem na Comunidade.
 - **Níveis:** Frango → Em Evolução → Atleta → Avançado, conquistas e relatório em PDF.

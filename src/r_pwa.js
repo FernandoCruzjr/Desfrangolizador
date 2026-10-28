@@ -41,7 +41,7 @@ const FEATURES = [
   ["camera","Foto do prato com IA","Fotografe o prato ou o rótulo e o app estima os alimentos e as gramas por você." + (STANDALONE_BUILD ? " Disponível na versão aberta pelo Claude." : "")],
   ["dumbbell","Treino de hipertrofia","45 exercícios por grupo muscular com execução detalhada, fichas prontas e suas, carga, reps, RPE e descanso cronometrado."],
   ["up","Sobrecarga progressiva","Gráfico de força (1RM) por exercício e alerta quando você estagnar."],
-  ["ruler","Meu Progresso","Peso com média de 7 dias, medidas guiadas, % de gordura, massa magra e fotos de antes e depois lado a lado."],
+  ["ruler","Meu Progresso","Peso com média de 7 dias, medidas guiadas, dados da balança de bioimpedância, % de gordura, massa magra e fotos de antes e depois."],
   ["bell","Lembretes","Horários de refeição, água e suplementos calculados pela hora que você acorda e dorme."],
   ["medal","Níveis e relatório","Suba de Frango para Avançado com constância, veja o diagnóstico da semana e exporte tudo em PDF para o seu treinador."]
 ];
