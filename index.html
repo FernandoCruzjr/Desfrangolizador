@@ -1958,7 +1958,24 @@ const MGROUPS = [
     ["bone","Massa óssea","kg","Muda muito pouco; serve mais como referência."],
     ["protein","Proteína","%","Taxa de proteína do corpo."],
     ["bmr","Metabolismo basal (TMB)","kcal","O gasto em repouso que a balança estima."],
-    ["bage","Idade corporal","anos","Estimativa da balança, só como curiosidade."]]},
+    ["bage","Idade corporal","anos","Estimativa da balança, só como curiosidade."],
+    ["icw","Água intracelular","kg","A água dentro das células. Sobe junto com o músculo."],
+    ["ecw","Água extracelular","kg","A água fora das células (sangue, entre os tecidos)."],
+    ["bcm","Massa celular corporal","kg","As células ativas: músculos, órgãos e sangue."],
+    ["mineral","Minerais","kg","Ossos e sais minerais do corpo."],
+    ["hr","Frequência cardíaca","bpm","Se a balança medir. Vale mais a de repouso, sentado, ao acordar."],
+    ["score","Pontuação de saúde","pontos","Nota de 0 a 100 do app da balança."]]},
+  {id:"seg", n:"Segmentos (balança)", d:"opcional", f:[
+    ["seg_m_ra","Músculo · braço direito","kg",""],
+    ["seg_m_la","Músculo · braço esquerdo","kg",""],
+    ["seg_m_tr","Músculo · tronco","kg",""],
+    ["seg_m_rl","Músculo · perna direita","kg",""],
+    ["seg_m_ll","Músculo · perna esquerda","kg",""],
+    ["seg_f_ra","Gordura · braço direito","kg",""],
+    ["seg_f_la","Gordura · braço esquerdo","kg",""],
+    ["seg_f_tr","Gordura · tronco","kg",""],
+    ["seg_f_rl","Gordura · perna direita","kg",""],
+    ["seg_f_ll","Gordura · perna esquerda","kg",""]]},
   {id:"bio", n:"Dobras cutâneas", d:"opcional", f:[
     ["sf_chest","Dobra peitoral","mm","Diagonal, entre a axila e o mamilo (homens)."],
     ["sf_abd","Dobra abdominal","mm","Vertical, 2 cm ao lado do umbigo (homens)."],
@@ -1967,8 +1984,8 @@ const MGROUPS = [
     ["sf_supra","Dobra suprailíaca","mm","Diagonal, logo acima da crista do quadril (mulheres)."]]}
 ];
 const MFIELDS = MGROUPS.flatMap(g => g.f).concat([["abdomen","Abdômen","cm",""]]);
-const CHART_FIELDS = ["weight","waist","arm","chest","thigh","neck","hip","calf","forearm","abdomen","bf","muscle","skm","ffm","water","visc","subq","bone","protein","bmr","bage"];
-const BIA_FIELDS = ["bf","muscle","skm","ffm","water","visc","subq","bone","protein","bmr","bage"];
+const CHART_FIELDS = ["weight","waist","arm","chest","thigh","neck","hip","calf","forearm","abdomen","bf","muscle","skm","ffm","water","visc","subq","bone","protein","bmr","bage","icw","ecw","bcm","mineral","hr","score","seg_m_ra","seg_m_la","seg_m_tr","seg_m_rl","seg_m_ll","seg_f_ra","seg_f_la","seg_f_tr","seg_f_rl","seg_f_ll"];
+const BIA_FIELDS = ["bf","muscle","skm","ffm","water","visc","subq","bone","protein","bmr","bage","icw","ecw","bcm","mineral","hr","score","seg_m_tr","seg_f_tr"];
 /* Faixas de referência das balanças de bioimpedância (adultos). */
 function biaStatus(p, k, v){
   const m = p.sex !== "f";
@@ -1976,6 +1993,8 @@ function biaStatus(p, k, v){
   if (k === "water") { const lo = m ? 50 : 45, hi = m ? 65 : 60; return v < lo ? ["warn","baixa: beba mais água"] : v > hi ? ["good","alta"] : ["good","normal"]; }
   if (k === "visc") return v <= 9 ? ["good","normal"] : v <= 14 ? ["warn","alta"] : ["bad","muito alta"];
   if (k === "protein") return v < 16 ? ["warn","baixa"] : v <= 20 ? ["good","normal"] : ["good","ótima"];
+  if (k === "hr") return v < 50 ? ["warn","baixa: confira sentado"] : v <= 80 ? ["good","normal"] : ["warn","alta: confira em repouso"];
+  if (k === "ecwr") return v <= 0.39 ? ["good","equilibrada"] : v <= 0.4 ? ["warn","um pouco alta"] : ["bad","alta: retenção ou inflamação"];
   return null;
 }
 const measures = () => ((Store.get("measures") || {}).list || []).slice().sort((a, b) => a.date.localeCompare(b.date));
@@ -2750,7 +2769,7 @@ function vEvolucao(){
   const imcCat = imc == null ? "" : imc < 18.5 ? "abaixo do peso" : imc < 25 ? "eutrófico" : imc < 30 ? "sobrepeso" : "obesidade";
   const ph = photos(), sel = UI.sel.filter(k => ph.some(x => x.key === k));
   const cmp = sel.length === 2 ? sel.map(k => ph.find(x => x.key === k)).sort((a, b) => a.date.localeCompare(b.date)) : null;
-  const histCols = CHART_FIELDS.filter(k => ms.some(m => +m[k])).map(k => MFIELDS.find(f => f[0] === k));
+  const histCols = CHART_FIELDS.filter(k => !k.startsWith("seg_") && ms.some(m => +m[k])).map(k => MFIELDS.find(f => f[0] === k));
   const bia = ms.filter(m => BIA_FIELDS.some(k => +m[k] && k !== "bf") || (+m.bf && +m.weight)), biaLast = bia[bia.length - 1], biaFirst = bia[0];
   return `
   <div class="ph"><div><div class="eyebrow">Métricas corporais · meu progresso</div><h1>Evolução</h1><p class="lede">A fita métrica e as fotos mostram o que a balança esconde. Meça a cada 1–2 semanas, pela manhã, em jejum e antes de treinar.</p></div><div class="row"><button class="btn" data-act="photoNew">${ic("camera")}Foto</button><button class="btn primary" data-act="scrollForm">${ic("plus")}Registrar medidas</button></div></div>
@@ -2772,7 +2791,7 @@ function vEvolucao(){
     <section class="panel" id="mform"><div class="panel-h"><h2>${ic("ruler")}Novo registro</h2></div>
       <div class="col">
         <div class="field"><label for="m-date">Data</label><input id="m-date" class="input" type="date" value="${todayISO()}"></div>
-        ${MGROUPS.map(g => `<div class="mgroup"><div class="mgroup-h">${g.n}<span class="pill">${g.d}</span></div>${g.id === "bia" ? `<details id="m-bia" ${biaLast ? "open" : ""}><summary class="sub" style="font-weight:600">Copiar os números da balança (o peso vai em Fundamentais)</summary><div class="mgroup" style="margin-top:10px">${g.f.map(f => mfieldHTML(f, lastAny)).join("")}</div></details>` : g.id === "bio" ? `<details><summary class="sub" style="font-weight:600">Mostrar dobras cutâneas (adipômetro)</summary><div class="mgroup" style="margin-top:10px">${g.f.map(f => mfieldHTML(f, lastAny)).join("")}</div></details>` : g.f.map(f => mfieldHTML(f, lastAny)).join("")}</div>`).join("")}
+        ${MGROUPS.map(g => `<div class="mgroup"><div class="mgroup-h">${g.n}<span class="pill">${g.d}</span></div>${g.id === "seg" ? `<details><summary class="sub" style="font-weight:600">Mostrar braços, pernas e tronco (kg)</summary><div class="mgroup" style="margin-top:10px">${g.f.map(f => mfieldHTML(f, lastAny)).join("")}</div></details>` : g.id === "bia" ? `<details id="m-bia" ${biaLast ? "open" : ""}><summary class="sub" style="font-weight:600">Copiar os números da balança (o peso vai em Fundamentais)</summary><div class="mgroup" style="margin-top:10px">${g.f.map(f => mfieldHTML(f, lastAny)).join("")}</div></details>` : g.id === "bio" ? `<details><summary class="sub" style="font-weight:600">Mostrar dobras cutâneas (adipômetro)</summary><div class="mgroup" style="margin-top:10px">${g.f.map(f => mfieldHTML(f, lastAny)).join("")}</div></details>` : g.f.map(f => mfieldHTML(f, lastAny)).join("")}</div>`).join("")}
         <button class="btn primary" data-act="saveMeasure">${ic("check")}Salvar registro</button>
         <details><summary class="sub" style="font-weight:600">Dicas de ouro para medir</summary><ul class="blist cue" style="margin-top:10px">${["Consistência vale mais que precisão: medindo sempre do mesmo jeito, a tendência aparece.","Mesmo horário: pela manhã, em jejum e antes de treinar. O pump do treino infla as medidas.","Mesmo lado: escolha um lado (ex.: direito) para braço e coxa, ou anote os dois separados.","Fita justa sem afundar a pele. Prefira fita de fibra de vidro ou metal, que não estica.","Frequência: a cada 1 ou 2 semanas. O músculo cresce devagar.","Fotos a cada 4 semanas, mesma pose, local e luz. Elas mostram densidade e formato."].map(x => `<li>${ic("check")}<span>${x}</span></li>`).join("")}</ul></details>
       </div>
@@ -2795,15 +2814,25 @@ function biaPanel(p, last, first){
   const fat = +last.bf && +last.weight ? last.weight * last.bf / 100 : null;
   const cell = (k, label, u, d = 1) => { const v = +last[k]; if (!v) return ""; const s = biaStatus(p, k, v), f0 = first && first !== last ? +first[k] : 0, dd = f0 ? v - f0 : null;
     return `<div class="stat"><span class="lbl">${label}</span><div class="v num">${fmt(v, d)}<small>${u}</small></div><div class="d">${s ? `<span class="pill ${s[0]}">${s[1]}</span> ` : ""}${dd ? `<span class="delta">${dd > 0 ? "+" : ""}${fmt(dd, d)} desde ${dLabel(first.date)}</span>` : ""}</div></div>`; };
-  const c = calc(p);
+  const c = calc(p), tbw = +last.water && +last.weight ? last.weight * last.water / 100 : 0, ecwr = +last.ecw && (tbw || +last.icw) ? last.ecw / (+last.icw ? last.icw + last.ecw : tbw) : null;
   return `<section class="panel"><div class="panel-h"><h2>${ic("scale")}Balança de bioimpedância</h2><span class="sub">${dLabel(last.date)}</span></div>
     <div class="stats" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">
       ${cell("bf","% de gordura","%")}${fat ? `<div class="stat"><span class="lbl">Gordura</span><div class="v num">${fmt(fat, 1)}<small>kg</small></div><div class="d">peso × % de gordura</div></div>` : ""}
-      ${cell("muscle","Massa muscular","kg")}${cell("skm","Músculo esquelético","%")}${cell("ffm","Livre de gordura","kg")}${cell("water","Água","%")}${cell("visc","Gordura visceral","", 0)}${cell("subq","Gordura subcutânea","%")}${cell("bone","Massa óssea","kg")}${cell("protein","Proteína","%")}${cell("bmr","TMB da balança","kcal", 0)}${cell("bage","Idade corporal","anos", 0)}
+      ${cell("muscle","Massa muscular","kg")}${cell("skm","Músculo esquelético","%")}${cell("ffm","Livre de gordura","kg")}${cell("water","Água","%")}${cell("visc","Gordura visceral","", 0)}${cell("subq","Gordura subcutânea","%")}${cell("bone","Massa óssea","kg")}${cell("protein","Proteína","%")}${cell("bmr","TMB da balança","kcal", 0)}${cell("bage","Idade corporal","anos", 0)}${cell("icw","Água intracelular","kg")}${cell("ecw","Água extracelular","kg")}${ecwr ? `<div class="stat"><span class="lbl">Extracelular ÷ água total</span><div class="v num">${fmt(ecwr, 3)}</div><div class="d"><span class="pill ${biaStatus(p, "ecwr", ecwr)[0]}">${biaStatus(p, "ecwr", ecwr)[1]}</span></div></div>` : ""}${cell("bcm","Massa celular","kg")}${cell("mineral","Minerais","kg")}${cell("hr","Frequência cardíaca","bpm", 0)}${cell("score","Pontuação de saúde","pontos", 0)}
     </div>
+    ${segTable(last)}
     ${+last.bmr && c && c.bmr ? `<p class="sub" style="margin-top:8px">A TMB do seu plano é <b class="num">${fmt(c.bmr)}</b> kcal; a da balança, <b class="num">${fmt(last.bmr)}</b> kcal. Diferenças de até 10% são normais. O % de gordura deste registro já entra no cálculo de massa magra e na fórmula Katch-McArdle.</p>` : ""}
     <p class="sub" style="margin-top:8px">Toque em <b>Tendência</b> no número que quiser (gordura, músculo, água…) para ver a evolução.</p>
     ${tipsHTML}</section>`;
+}
+function segTable(m){
+  const rows = [["Braços","ra","la"],["Pernas","rl","ll"]], has = k => +m[k] > 0;
+  if (!["m","f"].some(t => ["ra","la","rl","ll","tr"].some(s => has(`seg_${t}_${s}`)))) return "";
+  const asym = (a, b) => a && b ? Math.abs(a - b) / Math.max(a, b) * 100 : null;
+  const td = v => `<td>${v ? fmt(v, 1) : "—"}</td>`;
+  const body = [["m","Músculo"],["f","Gordura"]].map(([t, n]) => `<tr><th scope="row">${n}</th>${["ra","la","tr","rl","ll"].map(s => td(+m[`seg_${t}_${s}`])).join("")}</tr>`).join("");
+  const notes = rows.map(([n, r, l]) => { const d = asym(+m[`seg_m_${r}`], +m[`seg_m_${l}`]); return d == null ? "" : `<li>${ic(d > 10 ? "info" : "check")}<span><b>${n}:</b> diferença de músculo entre os lados de ${fmt(d, 0)}%. ${d > 10 ? "Acima de 10%: comece os unilaterais pelo lado mais fraco e iguale as repetições." : "Até 10% é normal; o lado dominante costuma ser um pouco maior."}</span></li>`; }).join("");
+  return `<div style="margin-top:12px"><h4 class="lbl" style="margin-bottom:6px">Segmentos (kg)</h4><div class="tscroll"><table class="mtable"><thead><tr><th></th><th>Braço D</th><th>Braço E</th><th>Tronco</th><th>Perna D</th><th>Perna E</th></tr></thead><tbody>${body}</tbody></table></div>${notes ? `<ul class="blist cue" style="margin-top:8px">${notes}</ul>` : ""}<p class="sub" style="margin-top:6px">Balança de pé estima braços e tronco por fórmula: use como tendência, não como medida exata.</p></div>`;
 }
 function mfieldHTML([k, n, u, hint], lastAny){
   return `<div class="mfield"><div style="min-width:0"><label class="mn" for="m-${k}">${n}</label><div class="mh">${hint}</div></div><div class="input-u"><input id="m-${k}" class="input num" type="number" inputmode="decimal" step="0.1" min="0" placeholder="${lastAny[k] ? fmt(lastAny[k], 1) : ""}"><span>${u}</span></div></div>`;
