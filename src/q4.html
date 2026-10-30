@@ -233,7 +233,24 @@ const MGROUPS = [
     ["bone","Massa óssea","kg","Muda muito pouco; serve mais como referência."],
     ["protein","Proteína","%","Taxa de proteína do corpo."],
     ["bmr","Metabolismo basal (TMB)","kcal","O gasto em repouso que a balança estima."],
-    ["bage","Idade corporal","anos","Estimativa da balança, só como curiosidade."]]},
+    ["bage","Idade corporal","anos","Estimativa da balança, só como curiosidade."],
+    ["icw","Água intracelular","kg","A água dentro das células. Sobe junto com o músculo."],
+    ["ecw","Água extracelular","kg","A água fora das células (sangue, entre os tecidos)."],
+    ["bcm","Massa celular corporal","kg","As células ativas: músculos, órgãos e sangue."],
+    ["mineral","Minerais","kg","Ossos e sais minerais do corpo."],
+    ["hr","Frequência cardíaca","bpm","Se a balança medir. Vale mais a de repouso, sentado, ao acordar."],
+    ["score","Pontuação de saúde","pontos","Nota de 0 a 100 do app da balança."]]},
+  {id:"seg", n:"Segmentos (balança)", d:"opcional", f:[
+    ["seg_m_ra","Músculo · braço direito","kg",""],
+    ["seg_m_la","Músculo · braço esquerdo","kg",""],
+    ["seg_m_tr","Músculo · tronco","kg",""],
+    ["seg_m_rl","Músculo · perna direita","kg",""],
+    ["seg_m_ll","Músculo · perna esquerda","kg",""],
+    ["seg_f_ra","Gordura · braço direito","kg",""],
+    ["seg_f_la","Gordura · braço esquerdo","kg",""],
+    ["seg_f_tr","Gordura · tronco","kg",""],
+    ["seg_f_rl","Gordura · perna direita","kg",""],
+    ["seg_f_ll","Gordura · perna esquerda","kg",""]]},
   {id:"bio", n:"Dobras cutâneas", d:"opcional", f:[
     ["sf_chest","Dobra peitoral","mm","Diagonal, entre a axila e o mamilo (homens)."],
     ["sf_abd","Dobra abdominal","mm","Vertical, 2 cm ao lado do umbigo (homens)."],
@@ -242,8 +259,8 @@ const MGROUPS = [
     ["sf_supra","Dobra suprailíaca","mm","Diagonal, logo acima da crista do quadril (mulheres)."]]}
 ];
 const MFIELDS = MGROUPS.flatMap(g => g.f).concat([["abdomen","Abdômen","cm",""]]);
-const CHART_FIELDS = ["weight","waist","arm","chest","thigh","neck","hip","calf","forearm","abdomen","bf","muscle","skm","ffm","water","visc","subq","bone","protein","bmr","bage"];
-const BIA_FIELDS = ["bf","muscle","skm","ffm","water","visc","subq","bone","protein","bmr","bage"];
+const CHART_FIELDS = ["weight","waist","arm","chest","thigh","neck","hip","calf","forearm","abdomen","bf","muscle","skm","ffm","water","visc","subq","bone","protein","bmr","bage","icw","ecw","bcm","mineral","hr","score","seg_m_ra","seg_m_la","seg_m_tr","seg_m_rl","seg_m_ll","seg_f_ra","seg_f_la","seg_f_tr","seg_f_rl","seg_f_ll"];
+const BIA_FIELDS = ["bf","muscle","skm","ffm","water","visc","subq","bone","protein","bmr","bage","icw","ecw","bcm","mineral","hr","score","seg_m_tr","seg_f_tr"];
 /* Faixas de referência das balanças de bioimpedância (adultos). */
 function biaStatus(p, k, v){
   const m = p.sex !== "f";
@@ -251,6 +268,8 @@ function biaStatus(p, k, v){
   if (k === "water") { const lo = m ? 50 : 45, hi = m ? 65 : 60; return v < lo ? ["warn","baixa: beba mais água"] : v > hi ? ["good","alta"] : ["good","normal"]; }
   if (k === "visc") return v <= 9 ? ["good","normal"] : v <= 14 ? ["warn","alta"] : ["bad","muito alta"];
   if (k === "protein") return v < 16 ? ["warn","baixa"] : v <= 20 ? ["good","normal"] : ["good","ótima"];
+  if (k === "hr") return v < 50 ? ["warn","baixa: confira sentado"] : v <= 80 ? ["good","normal"] : ["warn","alta: confira em repouso"];
+  if (k === "ecwr") return v <= 0.39 ? ["good","equilibrada"] : v <= 0.4 ? ["warn","um pouco alta"] : ["bad","alta: retenção ou inflamação"];
   return null;
 }
 const measures = () => ((Store.get("measures") || {}).list || []).slice().sort((a, b) => a.date.localeCompare(b.date));
