@@ -5213,11 +5213,25 @@ render();
 /* ======================= CONTA E NUVEM (SUPABASE) =======================
    Só na versão do site. Cada pessoa vê apenas os próprios dados (RLS na tabela user_docs). */
 const CLOUD = {sb:null, user:null, busy:false};
+/* Outros apps em fernandocruzjr.github.io usam o mesmo projeto do Supabase e dividem o mesmo localStorage.
+   Por isso a sessão daqui fica numa chave só do Desfrangolizador (AUTH_KEY) e os dados do aparelho
+   ficam marcados com o id de quem é dono deles (OWNER). */
+const AUTH_KEY = "desfr-auth", OWNER = "desfr-owner";
+const LAST_USER = "desfr-lastuser", PEND_DEL = "desfr-pending-del";
 (() => {
   const cfg = window.DESFR_SUPA;
   if (!cfg || !window.supabase || !window.supabase.createClient) return;
-  try { CLOUD.sb = window.supabase.createClient(cfg.url, cfg.key, {auth:{persistSession:true, autoRefreshToken:true, detectSessionInUrl:true}}); } catch (e) { console.warn(e); }
-  let stored = false; try { stored = Object.keys(localStorage).some(k => /^sb-.*-auth-token$/.test(k)); } catch (e) {}
+  /* Migração: a sessão antiga ficava na chave padrão, dividida com os outros apps. Só aproveita se for de quem já usava este aparelho. */
+  try {
+    if (!localStorage.getItem(AUTH_KEY)) {
+      const old = JSON.parse(localStorage.getItem("sb-" + new URL(cfg.url).hostname.split(".")[0] + "-auth-token") || "null");
+      const lu = JSON.parse(localStorage.getItem(LAST_USER) || "null");
+      const ow = JSON.parse(localStorage.getItem(OWNER) || "null") || (lu && lu.id);
+      if (old && old.user && ow && old.user.id === ow) localStorage.setItem(AUTH_KEY, JSON.stringify(old));
+    }
+  } catch (e) {}
+  try { CLOUD.sb = window.supabase.createClient(cfg.url, cfg.key, {auth:{storageKey:AUTH_KEY, persistSession:true, autoRefreshToken:true, detectSessionInUrl:true}}); } catch (e) { console.warn(e); }
+  let stored = false; try { stored = !!localStorage.getItem(AUTH_KEY); } catch (e) {}
   if (CLOUD.sb && !stored && !/access_token|type=recovery|code=/.test(location.hash + location.search)) CLOUD.gateEarly = true;
 })();
 
@@ -5237,10 +5251,17 @@ function cloudDB(){
 }
 
 /* Offline: lembra quem entrou por último e o que foi apagado sem internet. */
-const LAST_USER = "desfr-lastuser", PEND_DEL = "desfr-pending-del";
 const lsGet = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) || d; } catch (e) { return d; } };
 const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
-const hasToken = () => { try { return Object.keys(localStorage).some(k => /^sb-.*-auth-token$/.test(k)); } catch (e) { return false; } };
+const hasToken = () => { try { return !!localStorage.getItem(AUTH_KEY); } catch (e) { return false; } };
+/* Apaga do aparelho os dados de quem entrou antes (nada é apagado na nuvem). */
+async function wipeLocal(){
+  Object.keys(Store.t).forEach(k => { clearTimeout(Store.t[k]); Store.t[k] = null; });
+  Store.db = null; Store.uid = null; Store.mem = {}; VIEWER.name = "";
+  try { Object.keys(localStorage).filter(k => k.startsWith(LS) || k === "desfr-run-live" || k === "desfr-compose").forEach(k => localStorage.removeItem(k)); } catch (e) {}
+  lsSet(PEND_DEL, null); lsSet(LAST_USER, null); lsSet(OWNER, null);
+  try { const all = await PhotoDB.all(); await Promise.all(Object.keys(all).map(k => PhotoDB.del(k))); } catch (e) {}
+}
 {
   /* Apagou sem conexão? Guarda a chave para apagar na nuvem quando voltar. */
   const queue0 = Store.queue;
@@ -5250,6 +5271,8 @@ const hasToken = () => { try { return Object.keys(localStorage).some(k => /^sb-.
   };
 }
 Store.connectWith = async function(db, id){
+  /* Nunca envia para uma conta dados que pertencem a outra pessoa. */
+  if (lsGet(OWNER, null) !== id) { console.warn("dados do aparelho não são desta conta"); setSync("err"); return; }
   this.db = db; this.uid = id; setSync("saving");
   try {
     for (const k of lsGet(PEND_DEL, [])) { if (this.mem[k] == null) await db.collection("data/users/" + id).doc(k).delete(); }
@@ -5266,8 +5289,8 @@ Store.connectWith = async function(db, id){
 };
 
 function goOffline(){
-  const lu = lsGet(LAST_USER, null);
-  if (!lu || !hasToken()) return false;
+  const lu = lsGet(LAST_USER, null), ow = lsGet(OWNER, null);
+  if (!lu || !hasToken() || (ow && ow !== lu.id)) return false;
   CLOUD.offline = true; CLOUD.user = lu; Store.db = null;
   if (lu.name) VIEWER.name = lu.name;
   hideGate(); setSync("err"); render();
@@ -5283,6 +5306,10 @@ async function cloudSession(session){
   hideGate();
   if (CLOUD.user && CLOUD.user.id === u.id && !CLOUD.offline) return;
   CLOUD.offline = false;
+  /* Dados do aparelho de outra pessoa? Limpa antes de sincronizar. Sem dono marcado, usa quem entrou por último. */
+  const owner = lsGet(OWNER, null) || (lsGet(LAST_USER, null) || {}).id || null;
+  if (owner && owner !== u.id) { await wipeLocal(); render(); }
+  lsSet(OWNER, u.id);
   CLOUD.user = u;
   lsSet(LAST_USER, {id:u.id, email:u.email || "", name:(u.user_metadata && u.user_metadata.name) || "", user_metadata:u.user_metadata || {}});
   const nm = (u.user_metadata && u.user_metadata.name) || "";
@@ -5396,13 +5423,11 @@ document.addEventListener("submit", async ev => {
 async function logout(){
   confirmBox("Sair da conta?", "Seus dados continuam salvos na nuvem. Este aparelho fica limpo até você entrar de novo.", "Sair", async () => {
     for (let i = 0; i < 20 && (Object.values(Store.busy).some(Boolean) || Object.values(Store.t).some(Boolean)); i++) { Object.keys(Store.t).forEach(k => { if (Store.t[k]) { clearTimeout(Store.t[k]); Store.t[k] = null; Store.flush(k); } }); await new Promise(r => setTimeout(r, 150)); }
-    try { await CLOUD.sb.auth.signOut(); } catch (e) {}
-    try { Object.keys(localStorage).filter(k => /^sb-.*-auth-token$/.test(k)).forEach(k => localStorage.removeItem(k)); } catch (e) {}
-    lsSet(LAST_USER, null); lsSet(PEND_DEL, null); CLOUD.offline = false;
-    CLOUD.user = null; Store.db = null; VIEWER.name = "";
-    try { Object.keys(localStorage).filter(k => k.startsWith(LS)).forEach(k => localStorage.removeItem(k)); } catch (e) {}
-    try { const all = await PhotoDB.all(); await Promise.all(Object.keys(all).map(k => PhotoDB.del(k))); } catch (e) {}
-    Store.mem = {};
+    /* scope local: sai só deste app neste aparelho, sem derrubar os outros apps nem outros aparelhos. */
+    try { await CLOUD.sb.auth.signOut({scope:"local"}); } catch (e) {}
+    try { localStorage.removeItem(AUTH_KEY); } catch (e) {}
+    CLOUD.offline = false; CLOUD.user = null;
+    await wipeLocal();
     closeModal(); UI.tab = "inicio"; render(); setSync("local"); AUTH.mode = "entrar"; showGate();
   });
 }
