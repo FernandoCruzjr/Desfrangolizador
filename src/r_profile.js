@@ -5,6 +5,7 @@ function avatarHTML(initials){
   const src = avatarSrc();
   return (src ? `<img src="${src}" alt="">` : esc(initials)) + `<span class="cam" aria-hidden="true">${ic("camera")}</span>`;
 }
+ICONS.logout = '<path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3M14 16l4-4-4-4M18 12H8"/>';
 function profileModal(){
   const p = P(), c = calc(p), g = GOALS[p.goal] || GOALS.bulk, src = avatarSrc();
   const acct = typeof CLOUD !== "undefined" && CLOUD.user ? CLOUD.user.email : "";
@@ -15,8 +16,8 @@ function profileModal(){
         <label class="btn primary sm" style="cursor:pointer">${ic("camera")}${src ? "Trocar foto" : "Colocar foto"}<input type="file" accept="image/*" data-avatar hidden></label>
         ${src ? `<button class="btn sm ghost danger" data-act="avatarDel">${ic("trash")}Remover</button>` : ""}
       </div>
+      ${acct ? `<div class="prof-acct"><span>Conta: <b>${esc(acct)}</b></span><button class="btn sm danger" data-act="logout">${ic("logout")}Sair da conta</button></div>` : ""}
       <div class="field" style="text-align:left"><label for="pf-nick">Como quer ser chamado</label><input id="pf-nick" class="input" maxlength="40" value="${esc(p.nick || "")}" placeholder="${esc(firstName())}"></div>
-      ${acct ? `<p class="sub" style="margin:0">Conta: <b>${esc(acct)}</b></p>` : ""}
       <button class="calc-card" data-act="qPlano"><span class="calc-ic">${ic("flame")}</span><span class="calc-txt"><b>Calculadora de gasto calórico</b><span>${p.edited ? `Basal ${fmt(c.bmr)} · Total ${fmt(c.tdee)} · Meta ${fmt(c.kcal)} kcal (${g.n})` : "Calcule seu gasto basal e sua meta"}</span></span></button>
       <div class="row" style="gap:8px;justify-content:center;flex-wrap:wrap">
         <button class="btn sm" data-act="qEvol">${ic("up")}Evolução e medidas</button>
