@@ -355,7 +355,6 @@ const ACT = {
     try { navigator.clipboard.writeText(txt).then(() => toast("Horários copiados"), fallback); } catch(e){ fallback(); }
   },
   water: el => { const ml = +el.dataset.arg, d = UI.tab === "dieta" ? UI.date : todayISO(), real = addWater(d, ml); toast(real > 0 ? `+${fmt(real)} ml de água` : real < 0 ? `−${fmt(-real)} ml de água` : "Não há água registrada para tirar"); },
-  waterUndo: () => { const d = UI.tab === "dieta" ? UI.date : todayISO(), log = getDay(d).wlog || []; if (!log.length) return toast("Nada para desfazer"); const real = addWater(d, -log[log.length - 1]); toast(`Desfeito: −${fmt(-real)} ml de água`); },
   remWater: el => { document.getElementById("remRoot").innerHTML = ""; addWater(todayISO(), +el.dataset.arg); toast(`+${el.dataset.arg} ml de água`); },
   remMeal: () => { document.getElementById("remRoot").innerHTML = ""; UI.date = todayISO(); go("dieta"); },
   remClose: () => { document.getElementById("remRoot").innerHTML = ""; },

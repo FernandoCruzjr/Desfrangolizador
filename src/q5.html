@@ -188,19 +188,14 @@ function waterBlock(day, c){
   <div><div class="stat"><span class="lbl">Bebido hoje</span><div class="v">${fmt(v / 1000, 2)}<small>de ${fmt(tot / 1000, 1)} L</small></div><div class="d">${v >= tot ? "Meta batida. Boa!" : `Faltam ${fmt(tot - v)} ml · cerca de ${Math.ceil((tot - v) / 250)} copos`}</div></div>
   <div style="margin-top:10px">${waterBtns(day, " ml", false)}</div></div></div>`;
 }
-/* Água: soma ou tira (nunca abaixo de 0) e guarda o histórico do dia em day.wlog para o botão Desfazer. */
+/* Água: soma ou tira, nunca abaixo de 0. Devolve quanto mudou de verdade. */
 function addWater(d, ml){
-  const day = getDay(d), cur = day.water || 0, nv = Math.max(0, cur + ml), real = nv - cur, log = (day.wlog || []).slice();
-  if (real > 0) log.push(real);
-  else { let r = -real; while (r > 0 && log.length) { const l = log[log.length - 1]; if (l <= r) { log.pop(); r -= l; } else { log[log.length - 1] = l - r; r = 0; } } }
-  day.water = nv; day.wlog = log.slice(-30); saveDay(d, day); render(); return real;
+  const day = getDay(d), cur = day.water || 0, nv = Math.max(0, cur + ml);
+  day.water = nv; saveDay(d, day); render(); return nv - cur;
 }
 function waterBtns(day, u, center){
-  const v = day.water || 0, log = day.wlog || [], last = log[log.length - 1], jc = center ? "justify-content:center;" : "";
-  const add = [50, 100, 250, 500].map(n => `<button class="btn sm" data-act="water" data-arg="${n}">${ic("plus")}${n}${u}</button>`).join("");
-  const sub = (center ? [50] : [50, 250]).map(n => `<button class="btn sm ghost" data-act="water" data-arg="-${n}" aria-label="Tirar ${n} ml" ${v ? "" : "disabled"}>${ic("minus")}${n}${u}</button>`).join("");
-  const undo = `<button class="btn sm ghost" data-act="waterUndo" ${last && v ? "" : "disabled"} aria-label="Desfazer o último registro de água">${ic("undo")}${center ? "" : "Desfazer"}${last && v ? ` +${fmt(last)}` : ""}</button>`;
-  return `<div class="wbtns" style="${jc}">${add}</div><div class="wbtns" style="${jc}margin-top:6px">${undo}${sub}</div>`;
+  const v = day.water || 0;
+  return `<div class="wbtns" style="${center ? "justify-content:center" : ""}">${[50, 100, 250, 500].map(n => `<span class="wpair"><button class="wpm" data-act="water" data-arg="-${n}" aria-label="Tirar ${n} ml" ${v ? "" : "disabled"}>${ic("minus")}</button><span class="num">${n}${u}</span><button class="wpm" data-act="water" data-arg="${n}" aria-label="Adicionar ${n} ml">${ic("plus")}</button></span>`).join("")}</div>`;
 }
 
 /* ======================= PLANO ======================= */
