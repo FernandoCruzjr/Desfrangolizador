@@ -17,7 +17,7 @@ Object.assign(ACT, {
   quick: () => quickModal(),
   qAddFood: () => { closeModal(); UI.date = todayISO(); UI.tab = "dieta"; render(); UI.q = ""; openPicker(nextMealIndex(getDay(UI.date))); },
   qPhotoFood: () => { UI.date = todayISO(); UI.tab = "dieta"; render(); AIF = {file:null, url:"", items:null, mode:"prato", m:nextMealIndex(getDay(UI.date))}; aiFoodModal(); },
-  qWater: () => { closeModal(); const day = getDay(todayISO()); day.water = (day.water || 0) + 250; saveDay(todayISO(), day); render(); toast("+250 ml de água"); },
+  qWater: () => { closeModal(); addWater(todayISO(), 250); toast("+250 ml de água"); },
   qTrain: () => { closeModal(); UI.tab = "treino"; UI.wtab = "treinar"; render(); },
   qWeight: () => { closeModal(); go("evolucao", "mform"); setTimeout(() => { const i = $("#m-weight"); if (i) i.focus(); }, 300); },
   qProgress: () => photoModal(),

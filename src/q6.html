@@ -354,8 +354,9 @@ const ACT = {
     const fallback = () => { openModal(`${sheetHead("Seus horários")}<p class="sub">Selecione e copie o texto abaixo.</p><textarea class="input num" rows="10" readonly id="tx">${esc(txt)}</textarea>`); const t = $("#tx"); t.focus(); t.select(); };
     try { navigator.clipboard.writeText(txt).then(() => toast("Horários copiados"), fallback); } catch(e){ fallback(); }
   },
-  water: el => { const ml = +el.dataset.arg, d = UI.tab === "dieta" ? UI.date : todayISO(), day = getDay(d); day.water = Math.max(0, (day.water || 0) + ml); saveDay(d, day); render(); if (ml > 0) toast(`+${ml} ml de água`); },
-  remWater: el => { document.getElementById("remRoot").innerHTML = ""; const day = getDay(todayISO()); day.water = (day.water || 0) + +el.dataset.arg; saveDay(todayISO(), day); render(); toast(`+${el.dataset.arg} ml de água`); },
+  water: el => { const ml = +el.dataset.arg, d = UI.tab === "dieta" ? UI.date : todayISO(), real = addWater(d, ml); toast(real > 0 ? `+${fmt(real)} ml de água` : real < 0 ? `−${fmt(-real)} ml de água` : "Não há água registrada para tirar"); },
+  waterUndo: () => { const d = UI.tab === "dieta" ? UI.date : todayISO(), log = getDay(d).wlog || []; if (!log.length) return toast("Nada para desfazer"); const real = addWater(d, -log[log.length - 1]); toast(`Desfeito: −${fmt(-real)} ml de água`); },
+  remWater: el => { document.getElementById("remRoot").innerHTML = ""; addWater(todayISO(), +el.dataset.arg); toast(`+${el.dataset.arg} ml de água`); },
   remMeal: () => { document.getElementById("remRoot").innerHTML = ""; UI.date = todayISO(); go("dieta"); },
   remClose: () => { document.getElementById("remRoot").innerHTML = ""; },
   day: el => { const a = +el.dataset.arg; UI.date = a ? addDays(UI.date, a) : todayISO(); render(); },
